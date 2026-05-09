@@ -1,122 +1,68 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from 'react';
+import './index.css';
+import { useAuth } from './context/AuthContext';
+import LoginPage from './pages/LoginPage';
+import Sidebar from './components/Sidebar';
+import Dashboard from './components/Dashboard';
+import StudentsPage from './pages/StudentsPage';
 
-function App() {
-  const [count, setCount] = useState(0)
+// ── Placeholder for future pages ─────────────────────────────────────────────
+const Placeholder = ({ name }) => (
+  <div style={{
+    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    height: '60vh', gap: 16,
+  }}>
+    <div style={{
+      width: 56, height: 56, borderRadius: 16,
+      background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
+      boxShadow: '0 4px 16px rgba(99,102,241,0.10)',
+    }}>🚧</div>
+    <div style={{ textAlign: 'center' }}>
+      <p style={{ fontSize: 17, fontWeight: 600, color: '#475569' }}>{name}</p>
+      <p style={{ fontSize: 13, marginTop: 4, color: '#94a3b8' }}>This module is under construction.</p>
+    </div>
+  </div>
+);
+
+const PAGES = {
+  dashboard:  <Dashboard />,
+  students:   <StudentsPage />,
+  faculty:    <Placeholder name="Faculty" />,
+  courses:    <Placeholder name="Courses" />,
+  transport:  <Placeholder name="Transport" />,
+  attendance: <Placeholder name="Attendance" />,
+  timetable:  <Placeholder name="Timetable" />,
+  analytics:  <Placeholder name="Analytics" />,
+  settings:   <Placeholder name="Settings" />,
+};
+
+// ── Authenticated Shell ───────────────────────────────────────────────────────
+function AppShell() {
+  const [activePage, setActivePage] = useState('dashboard');
+  const SIDEBAR_W   = 260;
+  const SIDEBAR_GAP = 12;
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div style={{ minHeight: '100dvh', background: '#f4f6fb', position: 'relative' }}>
+      <Sidebar active={activePage} onNavigate={setActivePage} />
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      <main style={{
+        marginLeft: SIDEBAR_W + SIDEBAR_GAP * 2,
+        minHeight: '100dvh',
+        padding: '28px 32px',
+        transition: 'margin-left 0.3s cubic-bezier(0.4,0,0.2,1)',
+        position: 'relative', zIndex: 1,
+        maxWidth: 1240,
+      }}>
+        {PAGES[activePage]}
+      </main>
+    </div>
+  );
 }
 
-export default App
+// ── Root: route guard ─────────────────────────────────────────────────────────
+export default function App() {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <AppShell /> : <LoginPage />;
+}
