@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import './index.css';
 import { useAuth } from './context/AuthContext';
+import { LogOut } from 'lucide-react';
 import LoginPage from './pages/LoginPage';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import StudentsPage from './pages/StudentsPage';
+import FacultyPage from './pages/FacultyPage';
+import CoursePage from './pages/CoursePage';
+import AttendancePage from './pages/AttendancePage';
+import TimetablePage from './pages/TimetablePage';
+import StudentPortalPage from './pages/StudentPortalPage';
 
 // ── Placeholder for future pages ─────────────────────────────────────────────
 const Placeholder = ({ name }) => (
@@ -28,16 +34,15 @@ const Placeholder = ({ name }) => (
 const PAGES = {
   dashboard:  <Dashboard />,
   students:   <StudentsPage />,
-  faculty:    <Placeholder name="Faculty" />,
-  courses:    <Placeholder name="Courses" />,
-  transport:  <Placeholder name="Transport" />,
-  attendance: <Placeholder name="Attendance" />,
-  timetable:  <Placeholder name="Timetable" />,
+  faculty:    <FacultyPage />,
+  courses:    <CoursePage />,
+  attendance: <AttendancePage />,
+  timetable:  <TimetablePage />,
   analytics:  <Placeholder name="Analytics" />,
   settings:   <Placeholder name="Settings" />,
 };
 
-// ── Authenticated Shell ───────────────────────────────────────────────────────
+// ── Authenticated Admin / Faculty Shell ───────────────────────────────────────
 function AppShell() {
   const [activePage, setActivePage] = useState('dashboard');
   const SIDEBAR_W   = 260;
@@ -61,8 +66,36 @@ function AppShell() {
   );
 }
 
+// ── Authenticated Student Shell ───────────────────────────────────────────────
+function StudentShell() {
+  const { logout } = useAuth();
+  return (
+    <div style={{ minHeight: '100dvh', background: '#f4f6fb', padding: '24px 32px' }}>
+      <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+        <header style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 24 }}>
+          <button 
+            onClick={logout} 
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
+              background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, 
+              color: '#64748b', fontWeight: 600, fontSize: 13.5, cursor: 'pointer', 
+              boxShadow: '0 1px 3px rgba(0,0,0,0.02)', transition: 'all 0.15s' 
+            }} 
+            onMouseEnter={e => { e.currentTarget.style.color = '#f43f5e'; e.currentTarget.style.borderColor = 'rgba(244,63,94,0.3)'; }} 
+            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+          >
+            <LogOut size={16} /> Logout
+          </button>
+        </header>
+        <StudentPortalPage />
+      </div>
+    </div>
+  );
+}
+
 // ── Root: route guard ─────────────────────────────────────────────────────────
 export default function App() {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <AppShell /> : <LoginPage />;
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) return <LoginPage />;
+  return user?.role === 'student' ? <StudentShell /> : <AppShell />;
 }

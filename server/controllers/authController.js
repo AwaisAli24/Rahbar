@@ -13,11 +13,18 @@ const sendToken = (user, statusCode, res) => {
     success: true,
     token,
     user: {
-      id:     user._id,
-      name:   user.name,
-      email:  user.email,
-      role:   user.role,
-      avatar: user.avatar,
+      id:         user._id,
+      _id:        user._id,
+      name:       user.name,
+      email:      user.email,
+      role:       user.role,
+      avatar:     user.avatar,
+      campusID:   user.campusID,
+      department: user.department,
+      program:    user.program,
+      session:    user.session,
+      section:    user.section,
+      semester:   user.semester,
     },
   });
 };
@@ -39,7 +46,6 @@ export const register = async (req, res, next) => {
         return res.status(400).json({ success: false, message: 'Session and Program are required for students' });
       }
 
-      // Find the highest serial for this session and program
       const lastStudent = await User.findOne({ session, program })
         .sort({ campusID: -1 })
         .select('campusID');
@@ -53,6 +59,31 @@ export const register = async (req, res, next) => {
 
       const serialStr = String(nextSerial).padStart(3, '0');
       finalCampusID = `${session}-${program}-${serialStr}`;
+      finalEmail = `${finalCampusID.toLowerCase()}@rahbar.edu`;
+    }
+
+    // ── Auto-generate Faculty ID and Email ────────────────────────────────────
+    if (role === 'faculty') {
+      if (!department) {
+        return res.status(400).json({ success: false, message: 'Department is required for faculty' });
+      }
+
+      // Map department to short code (Computer Science -> CS)
+      const deptCode = department.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 3);
+      
+      const lastFaculty = await User.findOne({ role: 'faculty', department })
+        .sort({ campusID: -1 })
+        .select('campusID');
+
+      let nextSerial = 1;
+      if (lastFaculty && lastFaculty.campusID) {
+        const parts = lastFaculty.campusID.split('-');
+        const lastSerial = parseInt(parts[parts.length - 1]);
+        if (!isNaN(lastSerial)) nextSerial = lastSerial + 1;
+      }
+
+      const serialStr = String(nextSerial).padStart(3, '0');
+      finalCampusID = `FAC-${deptCode}-${serialStr}`;
       finalEmail = `${finalCampusID.toLowerCase()}@rahbar.edu`;
     }
 

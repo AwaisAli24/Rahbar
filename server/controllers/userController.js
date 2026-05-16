@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Course from '../models/Course.js';
 
 // @desc    Get all users (with optional role filter)
 // @route   GET /api/users
@@ -27,12 +28,14 @@ export const getUserStats = async (req, res, next) => {
   try {
     const studentCount = await User.countDocuments({ role: 'student' });
     const facultyCount = await User.countDocuments({ role: 'faculty' });
+    const courseCount = await Course.countDocuments({ isActive: true });
 
     res.status(200).json({
       success: true,
       stats: {
         students: studentCount,
-        faculty: facultyCount
+        faculty: facultyCount,
+        courses: courseCount
       }
     });
   } catch (err) {

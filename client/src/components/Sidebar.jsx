@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 export default function Sidebar({ active, onNavigate }) {
   const [collapsed, setCollapsed] = useState(false);
   const { user, logout, token } = useAuth();
-  const [stats, setStats] = useState({ students: 0, faculty: 0 });
+  const [stats, setStats] = useState({ students: 0, faculty: 0, courses: 0 });
 
   const initials = user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) ?? 'U';
 
@@ -43,13 +43,12 @@ export default function Sidebar({ active, onNavigate }) {
         { id: 'dashboard',   icon: LayoutDashboard, label: 'Dashboard',    badge: null },
         { id: 'students',    icon: GraduationCap,   label: 'Students',     badge: stats.students > 0 ? stats.students : null },
         { id: 'faculty',     icon: Users,           label: 'Faculty',      badge: stats.faculty > 0 ? stats.faculty : null },
-        { id: 'courses',     icon: BookOpen,        label: 'Courses',      badge: '3' },
+        { id: 'courses',     icon: BookOpen,        label: 'Courses',      badge: stats.courses > 0 ? stats.courses : null },
       ],
     },
     {
       label: 'Operations',
       items: [
-        { id: 'transport',   icon: Bus,             label: 'Transport',    badge: null },
         { id: 'attendance',  icon: ClipboardList,   label: 'Attendance',   badge: '!' },
         { id: 'timetable',   icon: Calendar,        label: 'Timetable',    badge: null },
       ],

@@ -11,6 +11,9 @@ dotenv.config();
 import healthRoutes from './routes/healthRoutes.js';
 import authRoutes   from './routes/authRoutes.js';
 import userRoutes   from './routes/userRoutes.js';
+import courseRoutes from './routes/courseRoutes.js';
+import attendanceRoutes from './routes/attendanceRoutes.js';
+import timetableRoutes from './routes/timetableRoutes.js';
 
 // ─── Initialize App ───────────────────────────────────────────────────────────
 const app = express();
@@ -37,6 +40,9 @@ if (process.env.NODE_ENV === 'development') {
 app.use('/api',      healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/courses', courseRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/timetable', timetableRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {
