@@ -1,18 +1,18 @@
 import Timetable from '../models/Timetable.js';
 import Course from '../models/Course.js';
 
-// @desc    Get timetable slots (filtered by department or day)
+// @desc    Get timetable slots (filtered by department, day, or facultyId)
 // @route   GET /api/timetable
 // @access  Private
 export const getTimetable = async (req, res, next) => {
   try {
-    const { department, day } = req.query;
+    const { department, day, facultyId } = req.query;
     const filter = {};
 
     if (department) filter.department = department;
     if (day) filter.day = day;
 
-    const slots = await Timetable.find(filter)
+    let slots = await Timetable.find(filter)
       .populate({
         path: 'course',
         select: 'title code creditHours faculty',
@@ -22,6 +22,10 @@ export const getTimetable = async (req, res, next) => {
         },
       })
       .sort({ day: 1, startTime: 1 });
+
+    if (facultyId) {
+      slots = slots.filter(slot => slot.course?.faculty?._id?.toString() === facultyId || slot.course?.faculty?.id === facultyId);
+    }
 
     res.status(200).json({
       success: true,

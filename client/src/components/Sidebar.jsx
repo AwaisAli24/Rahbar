@@ -3,7 +3,7 @@ import { LogOut } from 'lucide-react';
 import {
   LayoutDashboard, Users, BookOpen, Bus, Calendar,
   ClipboardList, BarChart3, Settings, ChevronLeft,
-  GraduationCap, Sparkles,
+  GraduationCap, Sparkles, DollarSign, Megaphone
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -51,6 +51,8 @@ export default function Sidebar({ active, onNavigate }) {
       items: [
         { id: 'attendance',  icon: ClipboardList,   label: 'Attendance',   badge: '!' },
         { id: 'timetable',   icon: Calendar,        label: 'Timetable',    badge: null },
+        { id: 'finance',     icon: DollarSign,      label: 'Finance',      badge: null },
+        { id: 'notices',     icon: Megaphone,       label: 'Notices',      badge: null },
       ],
     },
     {

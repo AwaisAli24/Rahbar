@@ -3,7 +3,7 @@ import {
   User, BookOpen, Calendar, Clock, MapPin, 
   CheckCircle2, AlertCircle, AlertTriangle, 
   GraduationCap, Award, Building2, Phone, Mail,
-  Loader2, BarChart2, ChevronRight, FileText
+  Loader2, BarChart2, ChevronRight, FileText, Megaphone, BellRing, Info
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -11,13 +11,21 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 
 export default function StudentPortalPage() {
   const { token, user } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'courses' | 'attendance' | 'timetable'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'courses' | 'attendance' | 'exams' | 'timetable'
   
   // Data State
   const [courses, setCourses] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [timetable, setTimetable] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Grades State
+  const [gradesSummary, setGradesSummary] = useState([]);
+  const [gradesLoading, setGradesLoading] = useState(false);
+
+  // Notices State
+  const [notices, setNotices] = useState([]);
+  const [noticesLoading, setNoticesLoading] = useState(false);
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -38,7 +46,6 @@ export default function StudentPortalPage() {
         if (coursesData.success) setCourses(coursesData.data || []);
         if (attData.success) setAttendance(attData.data || []);
         if (timeData.success) {
-          // Filter timetable slots for courses the student is actually enrolled in
           const studentCourseIds = (coursesData.data || []).map(c => c._id.toString());
           const filteredSlots = (timeData.data || []).filter(slot => 
             slot.course && studentCourseIds.includes(slot.course._id ? slot.course._id.toString() : slot.course.toString())
@@ -57,6 +64,48 @@ export default function StudentPortalPage() {
     }
   }, [token, user]);
 
+  // Fetch Grades Data
+  useEffect(() => {
+    const fetchGrades = async () => {
+      const userId = user?._id || user?.id;
+      if (!userId || activeTab !== 'exams') return;
+      setGradesLoading(true);
+      try {
+        const res = await fetch(`/api/assessments/student/${userId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          setGradesSummary(data.data || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch student grades');
+      } finally {
+        setGradesLoading(false);
+      }
+    };
+
+    fetchGrades();
+  }, [activeTab, token, user]);
+
+  // Fetch Notices Data
+  useEffect(() => {
+    const fetchNotices = async () => {
+      if (activeTab !== 'notices') return;
+      setNoticesLoading(true);
+      try {
+        const res = await fetch('/api/notices', { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        if (data.success) setNotices(data.data || []);
+      } catch (err) {
+        console.error('Failed to fetch notices');
+      } finally {
+        setNoticesLoading(false);
+      }
+    };
+    fetchNotices();
+  }, [activeTab, token]);
+
   if (loading) {
     return <div style={{ display: 'flex', justifyContent: 'center', padding: 120 }}><Loader2 className="animate-spin" color="#6366f1" size={36} /></div>;
   }
@@ -66,6 +115,10 @@ export default function StudentPortalPage() {
   const totalSessions = attendance.reduce((sum, a) => sum + a.totalSessions, 0);
   const totalAttended = attendance.reduce((sum, a) => sum + a.present + a.late, 0);
   const overallAttendanceRate = totalSessions > 0 ? Math.round((totalAttended / totalSessions) * 100) : 100;
+
+  // Calculate CGPA
+  const totalGPA = gradesSummary.reduce((sum, g) => sum + (g.gpa || 0), 0);
+  const cgpa = gradesSummary.length > 0 ? (totalGPA / gradesSummary.length).toFixed(2) : 'N/A';
 
   return (
     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
@@ -117,12 +170,14 @@ export default function StudentPortalPage() {
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid #e2e8f0', paddingBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid #e2e8f0', padding: '0 8px 12px', overflowX: 'auto' }}>
         {[
           { id: 'overview',   label: 'Academic Overview', icon: BookOpen },
           { id: 'courses',    label: 'My Courses',        icon: GraduationCap },
           { id: 'attendance', label: 'Attendance Report', icon: BarChart2 },
-          { id: 'timetable',  label: 'Class Schedule',    icon: Calendar }
+          { id: 'exams',      label: 'Exams & Grades',    icon: Award },
+          { id: 'timetable',  label: 'Class Schedule',    icon: Calendar },
+          { id: 'notices',    label: 'Notice Board',      icon: Megaphone }
         ].map(({ id, label, icon: Icon }) => {
           const isActive = activeTab === id;
           return (
@@ -134,7 +189,8 @@ export default function StudentPortalPage() {
                 border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
                 background: isActive ? '#6366f1' : 'transparent',
                 color: isActive ? '#fff' : '#64748b',
-                boxShadow: isActive ? '0 4px 12px rgba(99,102,241,0.25)' : 'none'
+                boxShadow: isActive ? '0 4px 12px rgba(99,102,241,0.25)' : 'none',
+                whiteSpace: 'nowrap'
               }}
             >
               <Icon size={16} /> {label}
@@ -299,7 +355,87 @@ export default function StudentPortalPage() {
         </div>
       )}
 
-      {/* ── TAB 4: CLASS SCHEDULE / TIMETABLE ── */}
+      {/* ── TAB 4: EXAMS & GRADES ── */}
+      {activeTab === 'exams' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+          
+          {/* CGPA Banner */}
+          <div style={{ background: '#fff', borderRadius: 20, border: '1px solid rgba(99,102,241,0.08)', padding: '24px 32px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20 }}>
+            <div>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>Cumulative Academic Performance</h2>
+              <p style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Live CGPA calculated across all graded semester courses.</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Overall CGPA</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', marginTop: 2 }}>
+                  <span style={{ fontSize: 24, fontWeight: 800, color: '#6366f1' }}>{cgpa}</span>
+                  <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 700 }}>/ 4.0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Course Grades Grid */}
+          {gradesLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><Loader2 className="animate-spin" color="#6366f1" size={28} /></div>
+          ) : gradesSummary.length === 0 ? (
+            <p style={{ padding: 60, textAlign: 'center', color: '#94a3b8', fontSize: 14, background: '#fff', borderRadius: 20, border: '1px solid #e2e8f0' }}>No examination records published for your courses yet.</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 24 }}>
+              {gradesSummary.map(({ course, assessments, cumulativeScore, grade, gpa }) => (
+                <div key={course.id} style={{ background: '#fff', borderRadius: 20, border: '1px solid rgba(99,102,241,0.08)', padding: 28, boxShadow: '0 1px 3px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                    <span style={{ padding: '4px 10px', background: 'rgba(99,102,241,0.08)', borderRadius: 8, color: '#6366f1', fontSize: 12, fontWeight: 700, fontFamily: 'monospace' }}>{course.code}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b', background: '#f8fafc', padding: '4px 10px', borderRadius: 8, border: '1px solid #e2e8f0' }}>{course.creditHours} Credits</span>
+                  </div>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', marginBottom: 20 }}>{course.title}</h3>
+
+                  {/* Assessments breakdown list */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24, flex: 1 }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Assessment Breakdown</span>
+                    {assessments.length === 0 ? (
+                      <p style={{ fontSize: 13, color: '#94a3b8', fontStyle: 'italic' }}>No assessments graded yet.</p>
+                    ) : assessments.map(item => (
+                      <div key={item.assessmentId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f8fafc', borderRadius: 12, border: '1px solid #f1f5f9' }}>
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{item.title}</p>
+                          <p style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{item.type} • {item.weightage}% Weight</p>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: 13.5, fontWeight: 800, color: '#1e293b' }}>{item.marksObtained}</span>
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}> / {item.totalMarks}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Course Summary Footer */}
+                  <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>Weighted Score</p>
+                      <p style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', marginTop: 2 }}>{cumulativeScore}%</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>Grade</p>
+                        <p style={{ fontSize: 16, fontWeight: 800, color: grade === 'A' || grade === 'A-' ? '#10b981' : grade.startsWith('B') ? '#6366f1' : grade.startsWith('C') ? '#eab308' : '#f43f5e', marginTop: 2 }}>{grade}</p>
+                      </div>
+                      <div style={{ height: 32, width: 1, background: '#e2e8f0' }} />
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>GPA</p>
+                        <p style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', marginTop: 2 }}>{gpa.toFixed(1)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB 5: CLASS SCHEDULE / TIMETABLE ── */}
       {activeTab === 'timetable' && (
         <div style={{ background: '#fff', borderRadius: 20, border: '1px solid rgba(99,102,241,0.08)', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
           <div style={{ padding: '20px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
@@ -340,6 +476,48 @@ export default function StudentPortalPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── TAB 6: NOTICE BOARD ── */}
+      {activeTab === 'notices' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ marginBottom: 8 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a' }}>Campus Announcements</h2>
+            <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>Stay updated with the latest news, schedules, and alerts.</p>
+          </div>
+
+          {noticesLoading ? (
+             <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><Loader2 className="animate-spin" color="#6366f1" size={28} /></div>
+          ) : notices.length === 0 ? (
+            <div style={{ padding: 60, textAlign: 'center', background: '#fff', borderRadius: 24, border: '1px solid #e2e8f0' }}>
+              <Megaphone size={40} color="#cbd5e1" style={{ marginBottom: 16 }} />
+              <p style={{ color: '#64748b', fontSize: 15, fontWeight: 500 }}>No recent announcements.</p>
+            </div>
+          ) : (
+            notices.map(notice => {
+              const urgencyProps = notice.urgency === 'Urgent' ? { bg: 'rgba(244,63,94,0.1)', color: '#f43f5e', icon: AlertTriangle } : notice.urgency === 'High' ? { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b', icon: BellRing } : { bg: 'rgba(56,189,248,0.1)', color: '#0ea5e9', icon: Info };
+              const UIcon = urgencyProps.icon;
+              return (
+                <div key={notice._id} style={{ background: '#fff', borderRadius: 20, border: '1px solid rgba(99,102,241,0.12)', padding: 28, boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: urgencyProps.bg, color: urgencyProps.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <UIcon size={20} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{notice.title}</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={12} /> {new Date(notice.createdAt).toLocaleString()}</span>
+                        <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#cbd5e1' }} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>By {notice.author?.name || 'Admin'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 14.5, color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{notice.content}</p>
+                </div>
+              );
+            })
+          )}
         </div>
       )}
 

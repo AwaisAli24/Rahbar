@@ -32,13 +32,15 @@ export const createCourse = async (req, res, next) => {
 // @access  Private
 export const getCourses = async (req, res, next) => {
   try {
-    const { department, studentId } = req.query;
+    const { department, studentId, facultyId } = req.query;
     const filter = {};
     if (department) filter.department = department;
     if (studentId) filter.students = studentId;
+    if (facultyId) filter.faculty = facultyId;
 
     const courses = await Course.find(filter)
       .populate('faculty', 'name email campusID designation')
+      .populate('students', 'name email campusID session program section')
       .sort({ code: 1 });
 
     res.status(200).json({ success: true, count: courses.length, data: courses });

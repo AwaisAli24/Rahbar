@@ -14,6 +14,11 @@ import userRoutes   from './routes/userRoutes.js';
 import courseRoutes from './routes/courseRoutes.js';
 import attendanceRoutes from './routes/attendanceRoutes.js';
 import timetableRoutes from './routes/timetableRoutes.js';
+import assessmentRoutes from './routes/assessmentRoutes.js';
+import settingRoutes from './routes/settingRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
+import financeRoutes from './routes/financeRoutes.js';
+import noticeRoutes from './routes/noticeRoutes.js';
 
 // ─── Initialize App ───────────────────────────────────────────────────────────
 const app = express();
@@ -24,7 +29,10 @@ connectDB();
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(helmet());                          // Security headers
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors({ 
+  origin: [process.env.CLIENT_URL || 'http://localhost:5173', 'http://localhost:5173'], 
+  credentials: true 
+}));
 app.use(express.json());                    // Parse JSON bodies
 app.use(express.urlencoded({ extended: true }));
 
@@ -43,6 +51,11 @@ app.use('/api/users', userRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/timetable', timetableRoutes);
+app.use('/api/assessments', assessmentRoutes);
+app.use('/api/settings', settingRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/finance', financeRoutes);
+app.use('/api/notices', noticeRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {
