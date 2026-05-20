@@ -19,6 +19,7 @@ import settingRoutes from './routes/settingRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import financeRoutes from './routes/financeRoutes.js';
 import noticeRoutes from './routes/noticeRoutes.js';
+import predictionRoutes from './routes/predictionRoutes.js';
 
 // ─── Initialize App ───────────────────────────────────────────────────────────
 const app = express();
@@ -56,6 +57,7 @@ app.use('/api/settings', settingRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/notices', noticeRoutes);
+app.use('/api/predictions', predictionRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {

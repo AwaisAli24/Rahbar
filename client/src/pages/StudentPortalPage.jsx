@@ -27,6 +27,9 @@ export default function StudentPortalPage() {
   const [notices, setNotices] = useState([]);
   const [noticesLoading, setNoticesLoading] = useState(false);
 
+  // Prediction State
+  const [prediction, setPrediction] = useState(null);
+
   useEffect(() => {
     const fetchStudentData = async () => {
       const userId = user?._id || user?.id;
@@ -106,6 +109,26 @@ export default function StudentPortalPage() {
     fetchNotices();
   }, [activeTab, token]);
 
+  // Fetch Prediction early warning details
+  useEffect(() => {
+    const fetchPrediction = async () => {
+      const userId = user?._id || user?.id;
+      if (!userId || !token) return;
+      try {
+        const res = await fetch(`/api/predictions/student/${userId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          setPrediction(data.prediction);
+        }
+      } catch (err) {
+        console.error('Failed to fetch student risk analysis');
+      }
+    };
+    fetchPrediction();
+  }, [token, user]);
+
   if (loading) {
     return <div style={{ display: 'flex', justifyContent: 'center', padding: 120 }}><Loader2 className="animate-spin" color="#6366f1" size={36} /></div>;
   }
@@ -168,6 +191,33 @@ export default function StudentPortalPage() {
           </div>
         </div>
       </div>
+
+      {/* Risk Alert Warning Banner */}
+      {prediction && prediction.risk_status !== 'Safe' && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 16, padding: '18px 24px',
+          background: prediction.risk_status === 'Critical Risk' ? 'rgba(244,63,94,0.06)' : 'rgba(245,158,11,0.06)',
+          border: `1px solid ${prediction.risk_status === 'Critical Risk' ? 'rgba(244,63,94,0.2)' : 'rgba(245,158,11,0.2)'}`,
+          borderRadius: 20, marginBottom: 24, animation: 'fadeIn 0.3s ease-out'
+        }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: prediction.risk_status === 'Critical Risk' ? 'rgba(244,63,94,0.1)' : 'rgba(245,158,11,0.1)',
+            color: prediction.risk_status === 'Critical Risk' ? '#f43f5e' : '#f59e0b',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+          }}>
+            <AlertTriangle size={20} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <h4 style={{ fontSize: 14, fontWeight: 800, color: prediction.risk_status === 'Critical Risk' ? '#f43f5e' : '#f59e0b' }}>
+              Academic Risk Early Warning ({prediction.risk_status})
+            </h4>
+            <p style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+              Our predictive model detects that you are currently at a <b>{prediction.risk_percentage}%</b> risk of academic difficulty. We suggest improving class attendance or speaking with your faculty advisor for guidance.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid #e2e8f0', padding: '0 8px 12px', overflowX: 'auto' }}>

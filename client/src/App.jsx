@@ -15,6 +15,7 @@ import FacultyPortalPage from './pages/FacultyPortalPage';
 import SettingsPage from './pages/SettingsPage';
 import FinancePage from './pages/FinancePage';
 import NoticeBoardPage from './pages/NoticeBoardPage';
+import PredictiveAnalyticsPage from './pages/PredictiveAnalyticsPage';
 
 // ── Placeholder for future pages ─────────────────────────────────────────────
 const Placeholder = ({ name }) => (
@@ -44,7 +45,7 @@ const PAGES = {
   timetable:  <TimetablePage />,
   finance:    <FinancePage />,
   notices:    <NoticeBoardPage />,
-  analytics:  <Placeholder name="Analytics" />,
+  analytics:  <PredictiveAnalyticsPage />,
   settings:   <SettingsPage />,
 };
 
