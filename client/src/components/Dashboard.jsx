@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
-  Bell, Search, TrendingUp, Users, BookOpen, Activity, Zap, 
+  Bell, Search, TrendingUp, Users, BookOpen, Activity, Zap,
   Shield, Clock, Loader2, Award, GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { 
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts';
@@ -64,10 +64,10 @@ export default function Dashboard() {
   const activityFeed = data?.activity || [];
 
   const stats = [
-    { label: 'Total Enrolled Students', value: kpis.totalStudents.toLocaleString(), change: 'Active', icon: Users,    color: '#6366f1', bg: 'rgba(99,102,241,0.10)' },
-    { label: 'Total Faculty Members',   value: kpis.totalFaculty.toLocaleString(),  change: 'Active', icon: GraduationCap, color: '#10b981', bg: 'rgba(16,185,129,0.10)' },
-    { label: 'Active Courses Catalog',  value: kpis.activeCourses.toLocaleString(), change: 'Live',   icon: BookOpen, color: '#f59e0b', bg: 'rgba(245,158,11,0.10)' },
-    { label: 'Total Assessments',       value: kpis.totalAssessments.toLocaleString(), change: 'Grading', icon: Award,    color: '#f43f5e', bg: 'rgba(244,63,94,0.10)'  },
+    { label: 'Total Enrolled Students', value: kpis.totalStudents.toLocaleString(), change: 'Active', icon: Users, color: '#6366f1', bg: 'rgba(99,102,241,0.10)' },
+    { label: 'Total Faculty Members', value: kpis.totalFaculty.toLocaleString(), change: 'Active', icon: GraduationCap, color: '#10b981', bg: 'rgba(16,185,129,0.10)' },
+    { label: 'Active Courses Catalog', value: kpis.activeCourses.toLocaleString(), change: 'Live', icon: BookOpen, color: '#f59e0b', bg: 'rgba(245,158,11,0.10)' },
+    { label: 'Total Assessments', value: kpis.totalAssessments.toLocaleString(), change: 'Grading', icon: Award, color: '#f43f5e', bg: 'rgba(244,63,94,0.10)' },
   ];
 
   return (
@@ -106,7 +106,7 @@ export default function Dashboard() {
       }}>
         <div style={{ position: 'relative' }}>
           <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(99,102,241,0.08)', 
+            display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(99,102,241,0.08)',
             border: '1px solid rgba(99,102,241,0.15)', borderRadius: 999, padding: '4px 12px', marginBottom: 14,
           }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#6366f1' }} />
@@ -146,7 +146,7 @@ export default function Dashboard() {
 
       {/* Charts Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
-        
+
         {/* Left: Department Distribution Bar Chart */}
         <Card style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -167,7 +167,7 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <Tooltip 
+                  <Tooltip
                     cursor={{ fill: 'rgba(99,102,241,0.04)' }}
                     contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 600 }}
                   />
@@ -186,7 +186,7 @@ export default function Dashboard() {
           </div>
           <div style={{ height: 260, width: '100%', marginTop: 20 }}>
             {facultyData.length === 0 ? (
-               <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 14 }}>No faculty data available.</div>
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 14 }}>No faculty data available.</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -205,7 +205,7 @@ export default function Dashboard() {
                       <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 600 }}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 12, fontWeight: 500 }} />
@@ -227,7 +227,7 @@ export default function Dashboard() {
             View Action Logs →
           </button>
         </div>
-        
+
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {activityFeed.length === 0 ? (
             <p style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 14, background: '#f8fafc', borderRadius: 12 }}>No recent activity recorded.</p>
@@ -235,7 +235,7 @@ export default function Dashboard() {
             const isCourse = item.type === 'course';
             const Icon = isCourse ? BookOpen : Award;
             const color = isCourse ? '#10b981' : '#f43f5e';
-            
+
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '14px 0', borderBottom: i < activityFeed.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
                 <div style={{ width: 40, height: 40, borderRadius: 12, background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
