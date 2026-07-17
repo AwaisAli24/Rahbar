@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { 
-  Users, UserPlus, Search, Filter, Trash2, 
+  Users, UserPlus, Search, Filter, Trash2, Pencil,
   Building2, Loader2, X, GraduationCap, MapPin, 
   Phone, Calendar, User as UserIcon
 } from 'lucide-react';
@@ -24,6 +24,7 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editStudent, setEditStudent] = useState(null); // null = add mode, object = edit mode
   
   // Form State
   const [form, setForm] = useState({
@@ -104,6 +105,62 @@ export default function StudentsPage() {
     }
   };
 
+  const openEditModal = (student) => {
+    setEditStudent(student);
+    setForm({
+      name: student.name || '',
+      fatherName: student.fatherName || '',
+      password: '',
+      sessionSeason: student.session?.slice(0, 2) || 'FA',
+      sessionYear: student.session?.slice(2) || new Date().getFullYear().toString().slice(-2),
+      program: student.program || '',
+      section: student.section || '',
+      semester: student.semester || 1,
+      department: student.department || '',
+      gender: student.gender || 'male',
+      dob: student.dob ? student.dob.slice(0, 10) : '',
+      phone: student.phone || '',
+      address: student.address || '',
+      role: 'student'
+    });
+    setFormError('');
+    setShowModal(true);
+  };
+
+  const handleEditStudent = async (e) => {
+    e.preventDefault();
+    setFormLoading(true);
+    setFormError('');
+    try {
+      const res = await fetch(`/api/users/${editStudent._id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: form.name,
+          fatherName: form.fatherName,
+          phone: form.phone,
+          address: form.address,
+          gender: form.gender,
+          dob: form.dob,
+          semester: form.semester,
+          section: form.section,
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to update student');
+      setShowModal(false);
+      setEditStudent(null);
+      fetchStudents();
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
   const filteredStudents = students.filter(s => 
     s.name.toLowerCase().includes(search.toLowerCase()) || 
     s.campusID.toLowerCase().includes(search.toLowerCase())
@@ -119,7 +176,7 @@ export default function StudentsPage() {
           <p style={{ color: '#64748b', fontSize: 14, marginTop: 4 }}>Auto-generating roll numbers and campus emails for all new enrollments.</p>
         </div>
         <button 
-          onClick={() => setShowModal(true)}
+          onClick={() => { setEditStudent(null); setForm({ name: '', fatherName: '', password: 'password123', sessionSeason: 'FA', sessionYear: new Date().getFullYear().toString().slice(-2), program: '', section: '', semester: 1, department: '', gender: 'male', dob: '', phone: '', address: '', role: 'student' }); setFormError(''); setShowModal(true); }}
           style={{
             display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px',
             background: '#6366f1', color: '#fff', border: 'none', borderRadius: 10,
@@ -210,17 +267,32 @@ export default function StudentsPage() {
                   </p>
                 </td>
                 <td style={{ ...tdStyle, textAlign: 'right' }}>
-                  <button 
-                    onClick={() => handleDelete(student._id)}
-                    style={{ 
-                      padding: 8, borderRadius: 8, border: 'none', background: 'none', 
-                      cursor: 'pointer', color: '#cbd5e1', transition: 'all 0.15s' 
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.color = '#f43f5e'; e.currentTarget.style.background = 'rgba(244,63,94,0.05)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.color = '#cbd5e1'; e.currentTarget.style.background = 'none'; }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                    <button 
+                      onClick={() => openEditModal(student)}
+                      style={{ 
+                        padding: 8, borderRadius: 8, border: 'none', background: 'none', 
+                        cursor: 'pointer', color: '#cbd5e1', transition: 'all 0.15s' 
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#6366f1'; e.currentTarget.style.background = 'rgba(99,102,241,0.07)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = '#cbd5e1'; e.currentTarget.style.background = 'none'; }}
+                      title="Edit Student"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(student._id)}
+                      style={{ 
+                        padding: 8, borderRadius: 8, border: 'none', background: 'none', 
+                        cursor: 'pointer', color: '#cbd5e1', transition: 'all 0.15s' 
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#f43f5e'; e.currentTarget.style.background = 'rgba(244,63,94,0.05)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = '#cbd5e1'; e.currentTarget.style.background = 'none'; }}
+                      title="Delete Student"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -243,11 +315,17 @@ export default function StudentsPage() {
             <button onClick={() => setShowModal(false)} style={{ position: 'absolute', top: 24, right: 24, background: '#f1f5f9', border: 'none', borderRadius: '50%', padding: 8, cursor: 'pointer', color: '#64748b' }}><X size={18} /></button>
             
             <div style={{ marginBottom: 32 }}>
-              <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>Enroll New Student</h2>
-              <p style={{ color: '#94a3b8', fontSize: 14 }}>Roll number and campus email will be generated automatically.</p>
+              <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>
+                {editStudent ? 'Edit Student' : 'Enroll New Student'}
+              </h2>
+              <p style={{ color: '#94a3b8', fontSize: 14 }}>
+                {editStudent 
+                  ? `Editing ${editStudent.name} — Roll No: ${editStudent.campusID}` 
+                  : 'Roll number and campus email will be generated automatically.'}
+              </p>
             </div>
 
-            <form onSubmit={handleAddStudent} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <form onSubmit={editStudent ? handleEditStudent : handleAddStudent} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               
               {/* Section: Academic Identity */}
               <div>
@@ -293,6 +371,22 @@ export default function StudentsPage() {
                     <label style={labelStyle}>Section</label>
                     <input required style={inputStyle} value={form.section} onChange={e => setForm({...form, section: e.target.value.toUpperCase()})} placeholder="e.g. A" maxLength={1} />
                   </div>
+                  {!editStudent && (
+                  <div>
+                    <label style={labelStyle}>Semester</label>
+                    <select style={inputStyle} value={form.semester} onChange={e => setForm({...form, semester: Number(e.target.value)})}>
+                      {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  )}
+                  {editStudent && (
+                  <div>
+                    <label style={labelStyle}>Semester</label>
+                    <select style={inputStyle} value={form.semester} onChange={e => setForm({...form, semester: Number(e.target.value)})}>
+                      {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  )}
                 </div>
                 <div style={{ marginTop: 16 }}>
                   <label style={labelStyle}>Department</label>
@@ -350,13 +444,13 @@ export default function StudentsPage() {
               {formError && <p style={{ fontSize: 13, color: '#f43f5e', background: 'rgba(244,63,94,0.06)', padding: '12px 16px', borderRadius: 12, border: '1px solid rgba(244,63,94,0.15)' }}>{formError}</p>}
 
               <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, fontWeight: 600, color: '#64748b', cursor: 'pointer' }}>Cancel</button>
+                <button type="button" onClick={() => { setShowModal(false); setEditStudent(null); }} style={{ flex: 1, padding: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, fontWeight: 600, color: '#64748b', cursor: 'pointer' }}>Cancel</button>
                 <button disabled={formLoading} style={{
-                  flex: 2, padding: '12px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: 12,
+                  flex: 2, padding: '12px', background: editStudent ? '#0ea5e9' : '#6366f1', color: '#fff', border: 'none', borderRadius: 12,
                   fontWeight: 700, fontSize: 15, cursor: formLoading ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 4px 12px rgba(99,102,241,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                  boxShadow: editStudent ? '0 4px 12px rgba(14,165,233,0.25)' : '0 4px 12px rgba(99,102,241,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
                 }}>
-                  {formLoading ? <Loader2 size={18} className="animate-spin" /> : 'Confirm Enrollment'}
+                  {formLoading ? <Loader2 size={18} className="animate-spin" /> : editStudent ? 'Save Changes' : 'Confirm Enrollment'}
                 </button>
               </div>
             </form>

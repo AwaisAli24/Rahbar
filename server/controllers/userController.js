@@ -43,6 +43,37 @@ export const getUserStats = async (req, res, next) => {
   }
 };
 
+// @desc    Update user (editable fields only)
+// @route   PUT /api/users/:id
+// @access  Private/Admin
+export const updateUser = async (req, res, next) => {
+  try {
+    const allowed = ['name', 'fatherName', 'phone', 'address', 'gender', 'dob', 'semester', 'section', 'isActive'];
+    const updates = {};
+    allowed.forEach(field => {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    });
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'User updated successfully',
+      data: user,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // @desc    Delete user
 // @route   DELETE /api/users/:id
 // @access  Private/Admin
