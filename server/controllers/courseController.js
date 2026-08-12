@@ -7,17 +7,17 @@ export const createCourse = async (req, res, next) => {
   try {
     const { title, code, creditHours, department, faculty, description } = req.body;
 
-    const exists = await Course.findOne({ code: code.toUpperCase() });
-    if (exists) {
-      return res.status(400).json({ success: false, message: `Course code ${code} already exists` });
-    }
+    // faculty can be an array or a single ID — normalise to array
+    const facultyArray = Array.isArray(faculty)
+      ? faculty.filter(Boolean)
+      : faculty ? [faculty] : [];
 
     const course = await Course.create({
       title,
       code,
       creditHours,
       department,
-      faculty,
+      faculty: facultyArray,
       description
     });
 
@@ -35,8 +35,8 @@ export const getCourses = async (req, res, next) => {
     const { department, studentId, facultyId } = req.query;
     const filter = {};
     if (department) filter.department = department;
-    if (studentId) filter.students = studentId;
-    if (facultyId) filter.faculty = facultyId;
+    if (studentId)  filter.students   = studentId;
+    if (facultyId)  filter.faculty    = facultyId; // works for array fields too
 
     const courses = await Course.find(filter)
       .populate('faculty', 'name email campusID designation')
@@ -68,12 +68,31 @@ export const getCourse = async (req, res, next) => {
   }
 };
 
+// @desc    Assign / update faculty for a course (replaces entire list)
+// @route   PUT /api/courses/:id/faculty
+// @access  Private/Admin
+export const updateCourseFaculty = async (req, res, next) => {
+  try {
+    const { facultyIds } = req.body; // array of user IDs
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
+
+    course.faculty = Array.isArray(facultyIds) ? facultyIds.filter(Boolean) : [];
+    await course.save();
+
+    const updated = await Course.findById(course._id).populate('faculty', 'name email campusID designation');
+    res.status(200).json({ success: true, message: 'Faculty updated', data: updated });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // @desc    Enroll students in course
 // @route   POST /api/courses/:id/enroll
 // @access  Private/Admin
 export const enrollStudents = async (req, res, next) => {
   try {
-    const { studentIds } = req.body; // Array of student IDs
+    const { studentIds } = req.body;
     const course = await Course.findById(req.params.id);
 
     if (!course) {

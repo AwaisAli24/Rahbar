@@ -4,13 +4,14 @@ import {
   CheckCircle2, AlertCircle, Users, GraduationCap, 
   Building2, Phone, Mail, Loader2, BarChart2, 
   ChevronRight, ClipboardList, Check, X, Search, 
-  FileText, Award, Plus, Trash2, Edit3, AlertTriangle, Megaphone, BellRing, Info
+  FileText, Award, Plus, Trash2, Edit3, AlertTriangle, Megaphone, BellRing, Info, ShieldAlert, XCircle,
+  PlayCircle, StopCircle, UserCheck, Timer, History
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function FacultyPortalPage() {
   const { token, user } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'courses' | 'attendance' | 'timetable' | 'exams'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'courses' | 'attendance' | 'my-attendance' | 'timetable' | 'exams'
   
   // Data State
   const [courses, setCourses] = useState([]);
@@ -32,6 +33,18 @@ export default function FacultyPortalPage() {
   const [attendanceSaving, setAttendanceSaving] = useState(false);
   const [attendanceError, setAttendanceError] = useState(null);
   const [attendanceSuccess, setAttendanceSuccess] = useState(null);
+  const [leaveLimit, setLeaveLimit] = useState(4);
+  const [withdrawThreshold, setWithdrawThreshold] = useState(2);
+
+  // ── Class Session State (Start/End Class) ──
+  const [classSession, setClassSession] = useState(null); // { _id, startTime, sessionActive, endTime }
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const [sessionError, setSessionError] = useState(null);
+  const [sessionSuccess, setSessionSuccess] = useState(null);
+
+  // ── My Attendance State ──
+  const [mySessions, setMySessions] = useState([]);
+  const [mySessionsLoading, setMySessionsLoading] = useState(false);
 
   // ── Examination & Gradebook State ──
   const [assessments, setAssessments] = useState([]);
@@ -102,6 +115,9 @@ export default function FacultyPortalPage() {
       });
       const data = await res.json();
       if (data.success) {
+        if (data.freeAbsents !== undefined) setLeaveLimit(data.freeAbsents);
+        if (data.withdrawThreshold !== undefined) setWithdrawThreshold(data.withdrawThreshold);
+        if (data.leaveLimit !== undefined) setLeaveLimit(data.leaveLimit);
         if (data.data && data.data.records) {
           setAttendanceRecords(data.data.records);
         } else {
@@ -110,7 +126,11 @@ export default function FacultyPortalPage() {
           const initialRecords = roster.map(student => ({
             student: student,
             status: 'Present',
-            remarks: ''
+            remarks: '',
+            cumulativeLeave: 0,
+            cumulativeAbsent: 0,
+            leaveExhausted: false,
+            withdraw: false,
           }));
           setAttendanceRecords(initialRecords);
         }
@@ -122,11 +142,96 @@ export default function FacultyPortalPage() {
     }
   };
 
+  // ── Fetch class session status for selected course ──
+  const fetchSessionStatus = async (courseId) => {
+    if (!courseId) return;
+    try {
+      const res = await fetch(`/api/faculty-attendance/session-status?courseId=${courseId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setClassSession(data.sessionExists ? data.data : null);
+      }
+    } catch (err) {
+      console.error('Failed to check session status');
+    }
+  };
+
+  // ── Start Class Handler ──
+  const handleStartClass = async () => {
+    setSessionLoading(true);
+    setSessionError(null);
+    setSessionSuccess(null);
+    try {
+      const res = await fetch('/api/faculty-attendance/start-class', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ courseId: selectedCourseId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to start class');
+      setClassSession(data.data);
+      setSessionSuccess(data.message);
+      setTimeout(() => setSessionSuccess(null), 5000);
+      // Now load attendance sheet
+      fetchAttendanceSheet(selectedCourseId, attendanceDate);
+    } catch (err) {
+      setSessionError(err.message);
+    } finally {
+      setSessionLoading(false);
+    }
+  };
+
+  // ── End Class Handler ──
+  const handleEndClass = async () => {
+    if (!window.confirm('Are you sure you want to end this class session?')) return;
+    setSessionLoading(true);
+    setSessionError(null);
+    try {
+      const res = await fetch('/api/faculty-attendance/end-class', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ courseId: selectedCourseId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to end class');
+      setClassSession(prev => prev ? { ...prev, sessionActive: false, endTime: data.data?.endTime } : null);
+      setSessionSuccess(data.message);
+      setTimeout(() => setSessionSuccess(null), 5000);
+    } catch (err) {
+      setSessionError(err.message);
+    } finally {
+      setSessionLoading(false);
+    }
+  };
+
+  // ── Fetch My Attendance Sessions ──
+  const fetchMySessions = async () => {
+    setMySessionsLoading(true);
+    try {
+      const res = await fetch('/api/faculty-attendance/my-sessions', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setMySessions(data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch my sessions');
+    } finally {
+      setMySessionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'attendance' && selectedCourseId && attendanceDate) {
       fetchAttendanceSheet(selectedCourseId, attendanceDate);
+      fetchSessionStatus(selectedCourseId);
     }
   }, [activeTab, selectedCourseId, attendanceDate, courses]);
+
+  useEffect(() => {
+    if (activeTab === 'my-attendance') fetchMySessions();
+  }, [activeTab]);
 
   // Fetch Examination & Gradebook Data
   const fetchExamsData = async (courseId) => {
@@ -205,7 +310,7 @@ export default function FacultyPortalPage() {
     setAttendanceSuccess(null);
     try {
       const payloadRecords = attendanceRecords.map(rec => ({
-        studentId: rec.student?._id || rec.student?.id || rec.student,
+        student: rec.student?._id || rec.student?.id || rec.student,
         status: rec.status,
         remarks: rec.remarks || ''
       }));
@@ -220,12 +325,16 @@ export default function FacultyPortalPage() {
 
       setAttendanceSuccess('Attendance roster recorded successfully!');
       setTimeout(() => setAttendanceSuccess(null), 4000);
+
+      // Re-fetch so badges update immediately with latest cumulative data
+      await fetchAttendanceSheet(selectedCourseId, attendanceDate);
     } catch (err) {
       setAttendanceError(err.message);
     } finally {
       setAttendanceSaving(false);
     }
   };
+
 
   // ── Exam & Gradebook Handlers ──
   const handleCreateExam = async (e) => {
@@ -395,12 +504,13 @@ export default function FacultyPortalPage() {
       {/* Navigation Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid #e2e8f0', padding: '0 8px 12px', overflowX: 'auto' }}>
         {[
-          { id: 'overview',   label: 'Faculty Overview',  icon: BookOpen },
-          { id: 'courses',    label: 'Assigned Courses',  icon: GraduationCap },
-          { id: 'attendance', label: 'Mark Attendance',   icon: ClipboardList },
-          { id: 'exams',      label: 'Gradebook & Exams', icon: Award },
-          { id: 'timetable',  label: 'Teaching Schedule', icon: Calendar },
-          { id: 'notices',    label: 'Notice Board',      icon: Megaphone }
+          { id: 'overview',      label: 'Faculty Overview',  icon: BookOpen },
+          { id: 'courses',       label: 'Assigned Courses',  icon: GraduationCap },
+          { id: 'attendance',    label: 'Mark Attendance',   icon: ClipboardList },
+          { id: 'my-attendance', label: 'My Attendance',     icon: UserCheck },
+          { id: 'exams',         label: 'Gradebook & Exams', icon: Award },
+          { id: 'timetable',     label: 'Teaching Schedule', icon: Calendar },
+          { id: 'notices',       label: 'Notice Board',      icon: Megaphone }
         ].map(({ id, label, icon: Icon }) => {
           const isActive = activeTab === id;
           return (
@@ -552,13 +662,13 @@ export default function FacultyPortalPage() {
         <div style={{ background: '#fff', borderRadius: 20, border: '1px solid rgba(99,102,241,0.08)', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', padding: 32 }}>
           
           {/* Controls Bar */}
-          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 28, paddingBottom: 24, borderBottom: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 24, paddingBottom: 20, borderBottom: '1px solid #f1f5f9' }}>
             <div style={{ flex: 1, minWidth: 240 }}>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>Select Assigned Course</label>
               <select 
                 style={inputStyle} 
                 value={selectedCourseId} 
-                onChange={e => setSelectedCourseId(e.target.value)}
+                onChange={e => { setSelectedCourseId(e.target.value); setClassSession(null); }}
               >
                 {courses.map(c => <option key={c._id} value={c._id}>{c.code} - {c.title}</option>)}
               </select>
@@ -573,20 +683,119 @@ export default function FacultyPortalPage() {
                 onChange={e => setAttendanceDate(e.target.value)} 
               />
             </div>
-
-            <button 
-              onClick={handleSaveAttendance}
-              disabled={attendanceSaving || attendanceRecords.length === 0}
-              style={{
-                height: 44, padding: '0 24px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: 10,
-                fontWeight: 700, fontSize: 14, cursor: (attendanceSaving || attendanceRecords.length === 0) ? 'not-allowed' : 'pointer',
-                boxShadow: '0 4px 12px rgba(99,102,241,0.25)', display: 'flex', alignItems: 'center', gap: 8
-              }}
-            >
-              {attendanceSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Save Attendance
-            </button>
           </div>
 
+          {/* ── SESSION STATUS MESSAGES ── */}
+          {sessionSuccess && (
+            <div style={{ padding: '14px 20px', borderRadius: 12, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(16,185,129,0.08)', color: '#10b981', border: '1px solid rgba(16,185,129,0.2)', fontWeight: 600, fontSize: 14 }}>
+              <CheckCircle2 size={18} /> {sessionSuccess}
+            </div>
+          )}
+          {sessionError && (
+            <div style={{ padding: '14px 20px', borderRadius: 12, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(244,63,94,0.08)', color: '#f43f5e', border: '1px solid rgba(244,63,94,0.2)', fontWeight: 600, fontSize: 14 }}>
+              <AlertCircle size={18} /> {sessionError}
+            </div>
+          )}
+
+          {/* ── START / END CLASS PANEL ── */}
+          {!classSession ? (
+            // ── NO SESSION: Show Start Class Button ──
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(99,102,241,0.04) 0%, rgba(139,92,246,0.04) 100%)',
+              border: '2px dashed rgba(99,102,241,0.25)', borderRadius: 20,
+              padding: '48px 32px', textAlign: 'center', marginBottom: 24,
+            }}>
+              <div style={{
+                width: 72, height: 72, borderRadius: 20, margin: '0 auto 20px',
+                background: 'rgba(99,102,241,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 8px 24px rgba(99,102,241,0.15)',
+              }}>
+                <PlayCircle size={34} color="#6366f1" />
+              </div>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>Start Your Class</h3>
+              <p style={{ fontSize: 14, color: '#64748b', marginBottom: 28, maxWidth: 400, margin: '0 auto 28px' }}>
+                Click <strong>"Start Class"</strong> to begin your session. Your attendance will be automatically marked <strong style={{ color: '#10b981' }}>Present</strong> and the student roster will unlock.
+              </p>
+              <button
+                onClick={handleStartClass}
+                disabled={sessionLoading || !selectedCourseId}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 10,
+                  padding: '14px 32px', background: '#6366f1', color: '#fff',
+                  border: 'none', borderRadius: 14, fontSize: 16, fontWeight: 700,
+                  cursor: sessionLoading || !selectedCourseId ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 8px 20px rgba(99,102,241,0.3)',
+                  transition: 'all 0.2s', opacity: sessionLoading || !selectedCourseId ? 0.6 : 1,
+                }}
+              >
+                {sessionLoading ? <Loader2 size={20} className="animate-spin" /> : <PlayCircle size={20} />}
+                {sessionLoading ? 'Starting Class...' : 'Start Class'}
+              </button>
+            </div>
+          ) : (
+            // ── SESSION ACTIVE or ENDED: Show status banner ──
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+              padding: '18px 24px', borderRadius: 16, marginBottom: 24,
+              background: classSession.sessionActive
+                ? 'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0.03) 100%)'
+                : 'rgba(100,116,139,0.06)',
+              border: `1.5px solid ${classSession.sessionActive ? 'rgba(16,185,129,0.25)' : '#e2e8f0'}`,
+            }}>
+              {/* Session Info */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                  background: classSession.sessionActive ? 'rgba(16,185,129,0.12)' : 'rgba(100,116,139,0.1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {classSession.sessionActive
+                    ? <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 0 4px rgba(16,185,129,0.25)', animation: 'pulse 1.5s infinite' }} />
+                    : <CheckCircle2 size={20} color="#64748b" />}
+                </div>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                    {classSession.sessionActive ? '🟢 Class In Progress — Your Attendance: Present' : '✅ Class Ended — Attendance Recorded'}
+                  </p>
+                  <p style={{ fontSize: 12, color: '#64748b', margin: 0, marginTop: 3, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <PlayCircle size={12} color="#10b981" />
+                      Started: {classSession.startTime ? new Date(classSession.startTime).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}
+                    </span>
+                    {classSession.endTime && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <StopCircle size={12} color="#ef4444" />
+                        Ended: {new Date(classSession.endTime).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              {/* End Class Button */}
+              {classSession.sessionActive && (
+                <button
+                  onClick={handleEndClass}
+                  disabled={sessionLoading}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '10px 20px', background: '#ef4444', color: '#fff',
+                    border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700,
+                    cursor: sessionLoading ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 12px rgba(239,68,68,0.25)', transition: 'all 0.15s',
+                    opacity: sessionLoading ? 0.6 : 1,
+                  }}
+                >
+                  {sessionLoading ? <Loader2 size={16} className="animate-spin" /> : <StopCircle size={16} />}
+                  End Class
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* ── SHOW STUDENT ROSTER ONLY IF CLASS STARTED ── */}
+          {classSession && (
+            <>
           {/* Status Messages */}
           {attendanceSuccess && (
             <div style={{ padding: '14px 20px', borderRadius: 12, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(16,185,129,0.08)', color: '#10b981', border: '1px solid rgba(16,185,129,0.2)', fontWeight: 600, fontSize: 14 }}>
@@ -605,6 +814,17 @@ export default function FacultyPortalPage() {
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => handleBulkMark('Present')} style={{ ...bulkButtonStyle, background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>Mark All Present</button>
               <button onClick={() => handleBulkMark('Absent')} style={{ ...bulkButtonStyle, background: 'rgba(244,63,94,0.1)', color: '#f43f5e' }}>Mark All Absent</button>
+              <button
+                onClick={handleSaveAttendance}
+                disabled={attendanceSaving || attendanceRecords.length === 0}
+                style={{
+                  height: 36, padding: '0 20px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: 10,
+                  fontWeight: 700, fontSize: 13, cursor: (attendanceSaving || attendanceRecords.length === 0) ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 4px 12px rgba(99,102,241,0.25)', display: 'flex', alignItems: 'center', gap: 6
+                }}
+              >
+                {attendanceSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Save Attendance
+              </button>
             </div>
           </div>
 
@@ -620,6 +840,7 @@ export default function FacultyPortalPage() {
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                     <th style={thStyle}>Roll Number</th>
                     <th style={thStyle}>Student Name</th>
+                    <th style={thStyle}>Leaves / Absents</th>
                     <th style={thStyle}>Attendance Status</th>
                     <th style={thStyle}>Remarks / Notes</th>
                   </tr>
@@ -628,43 +849,246 @@ export default function FacultyPortalPage() {
                   {attendanceRecords.map(rec => {
                     const student = rec.student || {};
                     const studentId = student._id || student.id || student;
+                    const leaveUsed = rec.cumulativeLeave ?? 0;
+                    const absentTotal = rec.cumulativeAbsent ?? 0;
+                    const leaveExhausted = leaveUsed >= leaveLimit;
+                    const showWithdraw = rec.withdraw || absentTotal > withdrawThreshold;
                     return (
-                      <tr key={studentId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <>
+                      {/* WITHDRAW WARNING BANNER */}
+                      {showWithdraw && (
+                        <tr key={`withdraw-${studentId}`}>
+                          <td colSpan={5} style={{ padding: '6px 20px 0', background: 'transparent' }}>
+                            <div style={{
+                              display: 'flex', alignItems: 'center', gap: 10,
+                              background: 'linear-gradient(90deg, rgba(239,68,68,0.12), rgba(239,68,68,0.06))',
+                              border: '1px solid rgba(239,68,68,0.35)',
+                              borderRadius: 10, padding: '8px 16px',
+                              color: '#dc2626', fontWeight: 700, fontSize: 12.5,
+                              animation: 'fadeIn 0.3s ease-out'
+                            }}>
+                              <AlertTriangle size={15} />
+                              ⚠ WITHDRAW WARNING — {student.name || 'This student'} has exceeded the allowed absents limit ({leaveLimit} free + {withdrawThreshold} max). Subject to course withdrawal.
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      <tr key={studentId} style={{ borderBottom: '1px solid #f1f5f9', background: showWithdraw ? 'rgba(239,68,68,0.03)' : 'transparent' }}>
                         <td style={tdStyle}><span style={{ fontSize: 13, fontWeight: 700, color: '#6366f1', fontFamily: 'monospace', background: 'rgba(99,102,241,0.06)', padding: '2px 8px', borderRadius: 6 }}>{student.campusID || 'ID'}</span></td>
-                        <td style={tdStyle}><span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{student.name || 'Student Name'}</span></td>
+                        <td style={tdStyle}><span style={{ fontSize: 14, fontWeight: 700, color: showWithdraw ? '#dc2626' : '#0f172a' }}>{student.name || 'Student Name'}</span></td>
+                        {/* ── Leave & Absent Badges ── */}
                         <td style={tdStyle}>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            {['Present', 'Absent', 'Late', 'Leave'].map(st => (
-                              <button
-                                key={st}
-                                onClick={() => handleStatusToggle(studentId, st)}
-                                style={{
-                                  padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none',
-                                  background: rec.status === st 
-                                    ? st === 'Present' ? '#10b981' : st === 'Absent' ? '#f43f5e' : '#eab308'
-                                    : '#f1f5f9',
-                                  color: rec.status === st ? '#fff' : '#64748b',
-                                  transition: 'all 0.15s'
-                                }}
-                              >
-                                {st}
-                              </button>
-                            ))}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <div
+                              title={leaveExhausted ? `Leave quota (${leaveLimit}) exhausted! Further absents counted as real absents.` : `${leaveUsed} of ${leaveLimit} free absents used`}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 4,
+                                padding: '3px 9px', borderRadius: 20, fontSize: 11.5, fontWeight: 700,
+                                background: leaveExhausted ? 'rgba(244,63,94,0.12)' : 'rgba(14,165,233,0.1)',
+                                color: leaveExhausted ? '#f43f5e' : '#0ea5e9',
+                                border: `1px solid ${leaveExhausted ? 'rgba(244,63,94,0.25)' : 'rgba(14,165,233,0.2)'}`,
+                                cursor: 'help'
+                              }}
+                            >
+                              {leaveExhausted ? <ShieldAlert size={11} /> : <Clock size={11} />}
+                              Leave: {leaveUsed}/{leaveLimit}
+                            </div>
+                            <div
+                              title={`Real absents (beyond ${leaveLimit} free): ${absentTotal}`}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 4,
+                                padding: '3px 9px', borderRadius: 20, fontSize: 11.5, fontWeight: 700,
+                                background: showWithdraw ? 'rgba(239,68,68,0.15)' : absentTotal > 0 ? 'rgba(244,63,94,0.08)' : 'rgba(100,116,139,0.08)',
+                                color: showWithdraw ? '#dc2626' : absentTotal > 0 ? '#f43f5e' : '#94a3b8',
+                                border: `1px solid ${showWithdraw ? 'rgba(239,68,68,0.4)' : absentTotal > 0 ? 'rgba(244,63,94,0.2)' : '#e2e8f0'}`,
+                                cursor: 'help'
+                              }}
+                            >
+                              <XCircle size={11} />
+                              Absent: {absentTotal}
+                            </div>
                           </div>
                         </td>
                         <td style={tdStyle}>
+                          {showWithdraw ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)' }}>
+                              <ShieldAlert size={14} color="#dc2626" />
+                              <span style={{ fontSize: 12, fontWeight: 700, color: '#dc2626' }}>WITHDRAWN — Attendance Locked</span>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              {['Present', 'Absent', 'Late'].map(st => (
+                                <button
+                                  key={st}
+                                  onClick={() => handleStatusToggle(studentId, st)}
+                                  style={{
+                                    padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none',
+                                    background: rec.status === st 
+                                      ? st === 'Present' ? '#10b981' : st === 'Absent' ? '#f43f5e' : '#eab308'
+                                      : '#f1f5f9',
+                                    color: rec.status === st ? '#fff' : '#64748b',
+                                    transition: 'all 0.15s'
+                                  }}
+                                >
+                                  {st}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td style={tdStyle}>
                           <input 
-                            style={{ ...inputStyle, height: 36, fontSize: 13 }} 
-                            placeholder="Optional remark..." 
+                            style={{ ...inputStyle, height: 36, fontSize: 13, opacity: showWithdraw ? 0.4 : 1, cursor: showWithdraw ? 'not-allowed' : 'text' }} 
+                            placeholder={showWithdraw ? 'Locked — student withdrawn' : 'Optional remark...'} 
                             value={rec.remarks || ''} 
-                            onChange={e => handleRemarksChange(studentId, e.target.value)} 
+                            onChange={e => !showWithdraw && handleRemarksChange(studentId, e.target.value)} 
                           />
                         </td>
                       </tr>
+                      </>
                     );
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+          </>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB: MY ATTENDANCE ── */}
+      {activeTab === 'my-attendance' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Header */}
+          <div style={{
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+            borderRadius: 20, padding: '28px 32px', color: '#fff',
+            display: 'flex', alignItems: 'center', gap: 16,
+            boxShadow: '0 8px 24px rgba(15,23,42,0.15)',
+          }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 14,
+              background: 'rgba(99,102,241,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <UserCheck size={22} color="#818cf8" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>My Attendance Record</h2>
+              <p style={{ fontSize: 13, opacity: 0.6, margin: 0, marginTop: 2 }}>All your class sessions with start & end times</p>
+            </div>
+            <button
+              onClick={fetchMySessions}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 18px', background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              <History size={15} /> Refresh
+            </button>
+          </div>
+
+          {mySessionsLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+              <Loader2 className="animate-spin" color="#6366f1" size={32} />
+            </div>
+          ) : mySessions.length === 0 ? (
+            <div style={{
+              background: '#fff', borderRadius: 20, border: '1px solid #e2e8f0',
+              padding: '60px 32px', textAlign: 'center', color: '#94a3b8',
+            }}>
+              <UserCheck size={40} color="#e2e8f0" style={{ margin: '0 auto 12px' }} />
+              <p style={{ fontSize: 16, fontWeight: 600 }}>No sessions recorded yet</p>
+              <p style={{ fontSize: 13, marginTop: 4 }}>Start a class to record your attendance automatically.</p>
+            </div>
+          ) : (
+            <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.02)' }}>
+              {/* Summary stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 0, borderBottom: '1px solid #f1f5f9' }}>
+                {[
+                  { label: 'Total Sessions', value: mySessions.length, color: '#6366f1' },
+                  { label: 'Present', value: mySessions.filter(s => s.status === 'Present').length, color: '#10b981' },
+                  { label: 'Avg Duration', value: (() => { const w = mySessions.filter(s => s.durationMinutes !== null); return w.length ? Math.round(w.reduce((a,s) => a + s.durationMinutes, 0) / w.length) + 'm' : 'N/A'; })(), color: '#f59e0b' },
+                ].map(({ label, value, color }, i) => (
+                  <div key={label} style={{
+                    padding: '20px 24px', textAlign: 'center',
+                    borderRight: i < 2 ? '1px solid #f1f5f9' : 'none',
+                  }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>{label}</p>
+                    <p style={{ fontSize: 24, fontWeight: 800, color, margin: 0, marginTop: 4 }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+              {/* Sessions list */}
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: '#fafbff', borderBottom: '1px solid #f1f5f9' }}>
+                      {['Course', 'Date', 'Start Time', 'End Time', 'Duration', 'Status'].map(h => (
+                        <th key={h} style={{
+                          padding: '12px 16px', fontSize: 11, fontWeight: 700,
+                          color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em',
+                          textAlign: 'left', whiteSpace: 'nowrap',
+                        }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mySessions.map((s, idx) => {
+                      const startT = s.startTime ? new Date(s.startTime).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+                      const endT = s.endTime ? new Date(s.endTime).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true }) : null;
+                      const dateStr = s.date ? new Date(s.date + 'T00:00:00').toLocaleDateString('en-PK', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+                      return (
+                        <tr key={s._id} style={{ borderBottom: idx < mySessions.length - 1 ? '1px solid #f8fafc' : 'none' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#fafbff'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <td style={{ padding: '14px 16px' }}>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>{s.course?.title || '—'}</p>
+                            <span style={{ fontSize: 11, fontWeight: 700, background: 'rgba(99,102,241,0.08)', color: '#6366f1', padding: '2px 7px', borderRadius: 6 }}>{s.course?.code || ''}</span>
+                          </td>
+                          <td style={{ padding: '14px 16px', fontSize: 13, color: '#475569', fontWeight: 500, whiteSpace: 'nowrap' }}>{dateStr}</td>
+                          <td style={{ padding: '14px 16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <PlayCircle size={14} color="#10b981" />
+                              <span style={{ fontSize: 13, fontWeight: 700, color: '#10b981' }}>{startT}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '14px 16px' }}>
+                            {endT ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <StopCircle size={14} color="#ef4444" />
+                                <span style={{ fontSize: 13, fontWeight: 700, color: '#ef4444' }}>{endT}</span>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '3px 8px', borderRadius: 6 }}>Ongoing</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '14px 16px', fontSize: 13, color: '#475569', fontWeight: 600 }}>
+                            {s.durationMinutes !== null && s.durationMinutes !== undefined
+                              ? `${Math.floor(s.durationMinutes / 60) > 0 ? Math.floor(s.durationMinutes / 60) + 'h ' : ''}${s.durationMinutes % 60}m`
+                              : '—'}
+                          </td>
+                          <td style={{ padding: '14px 16px' }}>
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5,
+                              fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 999,
+                              background: s.status === 'Present' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                              color: s.status === 'Present' ? '#10b981' : '#ef4444',
+                            }}>
+                              {s.status === 'Present' ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                              {s.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

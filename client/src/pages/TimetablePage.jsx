@@ -268,7 +268,15 @@ export default function TimetablePage() {
                                 <MapPin size={13} color="#94a3b8" /> <b style={{ color: '#475569' }}>{slot.room}</b>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#64748b' }}>
-                                <User size={13} color="#94a3b8" /> <span>{slot.course?.faculty?.name || 'Staff'}</span>
+                                <User size={13} color="#94a3b8" />
+                                <span>
+                                  {(() => {
+                                    const fac = slot.course?.faculty;
+                                    if (!fac) return 'Staff';
+                                    const arr = Array.isArray(fac) ? fac : [fac];
+                                    return arr.map(f => f.name || f).filter(Boolean).join(', ') || 'Staff';
+                                  })()}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -319,7 +327,13 @@ export default function TimetablePage() {
                   </td>
                   <td style={tdStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#475569' }}>
-                      <User size={14} color="#94a3b8" /> {slot.course?.faculty?.name || 'Unassigned'}
+                      <User size={14} color="#94a3b8" />
+                      {(() => {
+                        const fac = slot.course?.faculty;
+                        if (!fac) return 'Unassigned';
+                        const arr = Array.isArray(fac) ? fac : [fac];
+                        return arr.map(f => f.name || f).filter(Boolean).join(', ') || 'Unassigned';
+                      })()}
                     </div>
                   </td>
                   <td style={tdStyle}>
@@ -382,9 +396,14 @@ export default function TimetablePage() {
               <div>
                 <label style={labelStyle}>Select Course</label>
                 <select required style={inputStyle} value={form.courseId} onChange={e => setForm({...form, courseId: e.target.value})}>
-                  {courses.map(c => (
-                    <option key={c._id} value={c._id}>{c.code} - {c.title} ({c.faculty?.name || 'Staff'})</option>
-                  ))}
+                  {courses.map(c => {
+                    const fac = c.faculty;
+                    const facArr = Array.isArray(fac) ? fac : (fac ? [fac] : []);
+                    const facNames = facArr.map(f => f.name || '').filter(Boolean).join(', ') || 'No Faculty';
+                    return (
+                      <option key={c._id} value={c._id}>{c.code} - {c.title} ({facNames})</option>
+                    );
+                  })}
                 </select>
               </div>
 

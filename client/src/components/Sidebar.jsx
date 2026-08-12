@@ -3,7 +3,8 @@ import { LogOut } from 'lucide-react';
 import {
   LayoutDashboard, Users, BookOpen, Bus, Calendar,
   ClipboardList, BarChart3, Settings, ChevronLeft,
-  GraduationCap, Sparkles, DollarSign, Megaphone
+  GraduationCap, Sparkles, DollarSign, Megaphone,
+  ScrollText, UserCheck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -49,10 +50,12 @@ export default function Sidebar({ active, onNavigate }) {
     {
       label: 'Operations',
       items: [
-        { id: 'attendance',  icon: ClipboardList,   label: 'Attendance',   badge: '!' },
-        { id: 'timetable',   icon: Calendar,        label: 'Timetable',    badge: null },
-        { id: 'finance',     icon: DollarSign,      label: 'Finance',      badge: null },
-        { id: 'notices',     icon: Megaphone,       label: 'Notices',      badge: null },
+        { id: 'attendance',         icon: ClipboardList, label: 'Attendance',           badge: '!' },
+        { id: 'timetable',          icon: Calendar,      label: 'Timetable',            badge: null },
+        { id: 'finance',            icon: DollarSign,    label: 'Finance',              badge: null },
+        { id: 'notices',            icon: Megaphone,     label: 'Notices',              badge: null },
+        { id: 'transcripts',        icon: ScrollText,    label: 'Transcripts & Degree', badge: null },
+        { id: 'faculty-attendance', icon: UserCheck,     label: 'Faculty Attendance',   badge: null },
       ],
     },
     {

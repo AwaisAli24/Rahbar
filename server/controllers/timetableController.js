@@ -24,7 +24,10 @@ export const getTimetable = async (req, res, next) => {
       .sort({ day: 1, startTime: 1 });
 
     if (facultyId) {
-      slots = slots.filter(slot => slot.course?.faculty?._id?.toString() === facultyId || slot.course?.faculty?.id === facultyId);
+      slots = slots.filter(slot => {
+        const facList = Array.isArray(slot.course?.faculty) ? slot.course.faculty : (slot.course?.faculty ? [slot.course.faculty] : []);
+        return facList.some(f => (f._id || f).toString() === facultyId);
+      });
     }
 
     res.status(200).json({
@@ -48,7 +51,7 @@ export const createTimetableSlot = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'All timetable fields are required' });
     }
 
-    // Fetch course to verify existence and get assigned faculty
+    // Fetch course to verify existence
     const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ success: false, message: 'Selected course not found' });
@@ -63,19 +66,28 @@ export const createTimetableSlot = async (req, res, next) => {
       });
     }
 
-    // ─── CONFLICT CHECK 2: Faculty Availability ───────────────────────────────
-    if (course.faculty) {
-      // Find all slots on the same day and start time
-      const concurrentSlots = await Timetable.find({ day, startTime }).populate('course', 'faculty title code');
-      
-      const facultyConflict = concurrentSlots.find(
-        slot => slot.course?.faculty?.toString() === course.faculty.toString()
-      );
+    // ─── CONFLICT CHECK 2: Faculty Availability (array-aware) ─────────────────
+    const facultyIds = Array.isArray(course.faculty)
+      ? course.faculty.map(f => f.toString())
+      : course.faculty ? [course.faculty.toString()] : [];
+
+    if (facultyIds.length > 0) {
+      const concurrentSlots = await Timetable.find({ day, startTime }).populate({
+        path: 'course',
+        select: 'faculty title code',
+      });
+
+      const facultyConflict = concurrentSlots.find(slot => {
+        const slotFacIds = Array.isArray(slot.course?.faculty)
+          ? slot.course.faculty.map(f => f.toString())
+          : slot.course?.faculty ? [slot.course.faculty.toString()] : [];
+        return slotFacIds.some(fid => facultyIds.includes(fid));
+      });
 
       if (facultyConflict) {
         return res.status(400).json({
           success: false,
-          message: `Conflict: Instructor is already scheduled for ${facultyConflict.course.code} (${facultyConflict.room}) at this time.`,
+          message: `Conflict: An instructor is already scheduled for ${facultyConflict.course.code} (${facultyConflict.room}) at this time.`,
         });
       }
     }

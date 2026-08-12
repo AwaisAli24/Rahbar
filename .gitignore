@@ -1,1 +1,26 @@
 documentation
+
+# Environment variables (sensitive - never push to GitHub)
+.env
+.env.local
+.env.production
+
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Uploaded files
+server/uploads/
+
+# Build output
+client/dist/
+client/build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db

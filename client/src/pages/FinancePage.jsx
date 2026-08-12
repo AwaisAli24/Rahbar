@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   CreditCard, DollarSign, FileText, CheckCircle2, 
   AlertCircle, Loader2, Plus, Users, GraduationCap, Clock,
-  Eye, Printer, X
+  Eye, Printer, X, Zap, Search
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -21,10 +21,25 @@ export default function FinancePage() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+  // Filter State
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState('All');
+  const [rollSearch, setRollSearch] = useState('');
+
   // Fee Modal State
   const [feeModalOpen, setFeeModalOpen] = useState(false);
+  const [feeModalType, setFeeModalType] = useState('single'); // 'single' | 'bulk'
   const [feeForm, setFeeForm] = useState({ studentId: '', semester: 'Fall 2025', amount: 50000, dueDate: '', remarks: '' });
+  const [bulkFeeForm, setBulkFeeForm] = useState({ department: 'Computer Science', semester: 'Fall 2025', amount: 50000, dueDate: '', remarks: '' });
   const [feeSaving, setFeeSaving] = useState(false);
+
+  // Edit Fee Modal State
+  const [editFeeModalOpen, setEditFeeModalOpen] = useState(false);
+  const [editFeeForm, setEditFeeForm] = useState({ id: '', studentName: '', studentID: '', semester: '', amount: 0, dueDate: '', status: 'Unpaid', remarks: '' });
+
+  // Auto Generate Modal State
+  const [autoGenModalOpen, setAutoGenModalOpen] = useState(false);
+  const [autoGenForm, setAutoGenForm] = useState({ semester: 'Fall 2025', dueDate: '', department: '' });
+  const [autoGenSaving, setAutoGenSaving] = useState(false);
 
   // Salary Modal State
   const [salaryModalOpen, setSalaryModalOpen] = useState(false);
@@ -79,15 +94,19 @@ export default function FinancePage() {
     setFeeSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/finance/fees', {
+      const isBulk = feeModalType === 'bulk';
+      const endpoint = isBulk ? '/api/finance/fees/bulk' : '/api/finance/fees';
+      const payload = isBulk ? bulkFeeForm : feeForm;
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(feeForm)
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to create fee challan');
+      if (!res.ok) throw new Error(data.message || 'Failed to generate challan(s)');
       
-      setSuccess('Fee challan generated successfully');
+      setSuccess(isBulk ? `Successfully generated bulk challans for ${bulkFeeForm.department}` : 'Fee challan generated successfully');
       setFeeModalOpen(false);
       fetchFinanceData();
       setTimeout(() => setSuccess(null), 4000);
@@ -96,6 +115,50 @@ export default function FinancePage() {
     } finally {
       setFeeSaving(false);
     }
+  };
+
+  const handleEditFeeSubmit = async (e) => {
+    e.preventDefault();
+    setFeeSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/finance/fees/${editFeeForm.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          semester: editFeeForm.semester,
+          amount: editFeeForm.amount,
+          dueDate: editFeeForm.dueDate,
+          status: editFeeForm.status,
+          remarks: editFeeForm.remarks
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to update fee record');
+
+      setSuccess('Fee record updated successfully');
+      setEditFeeModalOpen(false);
+      fetchFinanceData();
+      setTimeout(() => setSuccess(null), 4000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setFeeSaving(false);
+    }
+  };
+
+  const openEditFeeModal = (fee) => {
+    setEditFeeForm({
+      id: fee._id,
+      studentName: fee.student?.name || 'Unknown',
+      studentID: fee.student?.campusID || 'N/A',
+      semester: fee.semester,
+      amount: fee.amount,
+      dueDate: fee.dueDate,
+      status: fee.status,
+      remarks: fee.remarks || ''
+    });
+    setEditFeeModalOpen(true);
   };
 
   const handleUpdateFeeStatus = async (id, status) => {
@@ -109,6 +172,35 @@ export default function FinancePage() {
       if (res.ok) fetchFinanceData();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleAutoGenerate = async (e) => {
+    e.preventDefault();
+    setAutoGenSaving(true);
+    setError(null);
+    try {
+      const payload = { 
+        semester: autoGenForm.semester, 
+        dueDate: autoGenForm.dueDate,
+        ...(autoGenForm.department && { department: autoGenForm.department })
+      };
+      const res = await fetch('/api/finance/fees/auto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to auto-generate challans');
+
+      setSuccess(data.message || `Auto-generated ${data.count} fee challans!`);
+      setAutoGenModalOpen(false);
+      fetchFinanceData();
+      setTimeout(() => setSuccess(null), 5000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAutoGenSaving(false);
     }
   };
 
@@ -206,14 +298,87 @@ export default function FinancePage() {
       {/* ── STUDENT FEES TAB ── */}
       {activeTab === 'fees' && (
         <div style={{ background: '#fff', borderRadius: 24, border: '1px solid rgba(99,102,241,0.12)', boxShadow: '0 10px 30px -10px rgba(99,102,241,0.05)', overflow: 'hidden' }}>
-          <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>Fee Challans</h2>
               <p style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Generate and track student tuition payments.</p>
+              {/* Rate info */}
+              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                {[{ cr: '1 Credit Hr', rate: 'PKR 2,000' }, { cr: '2 Credit Hrs', rate: 'PKR 3,000' }, { cr: '3+ Credit Hrs', rate: 'PKR 5,000' }].map(r => (
+                  <span key={r.cr} style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 8, background: 'rgba(99,102,241,0.06)', color: '#6366f1', border: '1px solid rgba(99,102,241,0.15)' }}>
+                    {r.cr} = {r.rate}
+                  </span>
+                ))}
+              </div>
             </div>
-            <button onClick={() => setFeeModalOpen(true)} style={primaryBtnStyle}>
-              <Plus size={16} /> Generate Challan
-            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button 
+                onClick={() => { setAutoGenForm({ semester: 'Fall 2025', dueDate: '', department: '' }); setAutoGenModalOpen(true); }}
+                style={{ height: 44, padding: '0 20px', background: 'linear-gradient(135deg, #7c3aed, #6366f1)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 15px rgba(99,102,241,0.35)' }}
+              >
+                <Zap size={16} /> Auto Generate
+              </button>
+              <button onClick={() => setFeeModalOpen(true)} style={primaryBtnStyle}>
+                <Plus size={16} /> Manual
+              </button>
+            </div>
+          </div>
+
+          {/* Filter Bar — Search + Department */}
+          <div style={{ 
+            display: 'flex', gap: 16, padding: '14px 24px', 
+            background: '#f8fafc', borderBottom: '1px solid #f1f5f9',
+            alignItems: 'center', flexWrap: 'wrap'
+          }}>
+
+            {/* Roll Number Search */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: rollSearch ? '#6366f1' : '#94a3b8', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                value={rollSearch}
+                onChange={e => setRollSearch(e.target.value)}
+                placeholder="Search by Roll No..."
+                style={{
+                  height: 38, paddingLeft: 36, paddingRight: rollSearch ? 32 : 14,
+                  background: rollSearch ? 'rgba(99,102,241,0.05)' : '#fff',
+                  border: `1.5px solid ${rollSearch ? '#6366f1' : '#e2e8f0'}`,
+                  borderRadius: 10, fontSize: 13.5, outline: 'none',
+                  width: 210, fontFamily: 'inherit', color: '#0f172a',
+                  transition: 'all 0.2s', fontWeight: rollSearch ? 600 : 400
+                }}
+              />
+              {rollSearch && (
+                <button
+                  onClick={() => setRollSearch('')}
+                  style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', padding: 2 }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <div style={{ width: 1, height: 28, background: '#e2e8f0', flexShrink: 0 }} />
+
+            {/* Department Filter */}
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#94a3b8', flexShrink: 0 }}>Department:</span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {['All', 'Computer Science', 'Electrical Engineering', 'Business School', 'Mathematics'].map(dept => (
+                <button
+                  key={dept}
+                  onClick={() => setSelectedDeptFilter(dept)}
+                  style={{
+                    padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    border: `1px solid ${selectedDeptFilter === dept ? '#6366f1' : '#e2e8f0'}`,
+                    background: selectedDeptFilter === dept ? 'rgba(99,102,241,0.08)' : '#fff',
+                    color: selectedDeptFilter === dept ? '#6366f1' : '#64748b',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {dept}
+                </button>
+              ))}
+            </div>
           </div>
 
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
@@ -228,10 +393,31 @@ export default function FinancePage() {
               </tr>
             </thead>
             <tbody>
-              {fees.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: 60, textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>No fee records generated yet.</td></tr>
-              ) : fees.map(fee => (
-                <tr key={fee._id} style={{ borderBottom: '1px solid #f8fafc' }}>
+              {(() => {
+                const rollQuery = rollSearch.trim().toLowerCase();
+                const filteredFees = fees.filter(fee => {
+                  const deptOk = selectedDeptFilter === 'All' || fee.student?.department === selectedDeptFilter;
+                  const rollOk = !rollQuery ||
+                    fee.student?.campusID?.toLowerCase().includes(rollQuery) ||
+                    fee.student?.name?.toLowerCase().includes(rollQuery);
+                  return deptOk && rollOk;
+                });
+
+                if (filteredFees.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan={6} style={{ padding: 60, textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>
+                        {rollQuery
+                          ? `No fee records found for "${rollSearch}".`
+                          : `No fee records found for ${selectedDeptFilter === 'All' ? 'any department' : selectedDeptFilter}.`
+                        }
+                      </td>
+                    </tr>
+                  );
+                }
+
+                return filteredFees.map(fee => (
+                  <tr key={fee._id} style={{ borderBottom: '1px solid #f8fafc' }}>
                   <td style={tdStyle}>
                     <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{fee.student?.name}</p>
                     <p style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>{fee.student?.campusID}</p>
@@ -264,6 +450,16 @@ export default function FinancePage() {
                       >
                         <Eye size={14} /> View
                       </button>
+                      <button 
+                        onClick={() => openEditFeeModal(fee)} 
+                        style={{ 
+                          display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', 
+                          background: 'rgba(99,102,241,0.08)', color: '#6366f1', border: '1px solid rgba(99,102,241,0.15)', 
+                          borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' 
+                        }}
+                      >
+                        Edit
+                      </button>
                       {fee.status !== 'Paid' && (
                         <button onClick={() => handleUpdateFeeStatus(fee._id, 'Paid')} style={{ padding: '6px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 8px rgba(16,185,129,0.2)' }}>
                           Mark Paid
@@ -272,7 +468,8 @@ export default function FinancePage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                ));
+              })()}
             </tbody>
           </table>
         </div>
@@ -357,40 +554,217 @@ export default function FinancePage() {
 
       {/* ── MODALS ── */}
 
+      {/* ⚡ Auto Generate Fees Modal */}
+      {autoGenModalOpen && (
+        <div style={modalOverlayStyle}>
+          <div style={{ ...modalContentStyle, maxWidth: 480 }}>
+            <button onClick={() => setAutoGenModalOpen(false)} style={{ position: 'absolute', top: 20, right: 20, background: '#f1f5f9', border: 'none', borderRadius: '50%', padding: 8, cursor: 'pointer', color: '#64748b' }}><X size={16} /></button>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg, #7c3aed, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Zap size={22} color="#fff" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: 0 }}>Auto Generate Fees</h2>
+                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>System automatically calculates fees per student</p>
+              </div>
+            </div>
+
+            {/* Rate reference card */}
+            <div style={{ background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: 14, padding: '14px 18px', marginBottom: 24 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: '#6366f1', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Fee Rate Chart (per course)</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                {[
+                  { label: '1 Credit Hour', rate: 'PKR 2,000', color: '#10b981' },
+                  { label: '2 Credit Hours', rate: 'PKR 3,000', color: '#f59e0b' },
+                  { label: '3+ Credit Hours', rate: 'PKR 5,000', color: '#6366f1' },
+                ].map(r => (
+                  <div key={r.label} style={{ background: '#fff', borderRadius: 10, padding: '10px 12px', textAlign: 'center', border: `1px solid ${r.color}30` }}>
+                    <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 4px' }}>{r.label}</p>
+                    <p style={{ fontSize: 14, fontWeight: 800, color: r.color, margin: 0 }}>{r.rate}</p>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 10, marginBottom: 0 }}>
+                Total fee = sum of all enrolled courses' rates for each student.
+              </p>
+            </div>
+
+            <form onSubmit={handleAutoGenerate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Semester Term</label>
+                  <input style={inputStyle} value={autoGenForm.semester} onChange={e => setAutoGenForm({...autoGenForm, semester: e.target.value})} placeholder="e.g. Fall 2025" required />
+                </div>
+                <div>
+                  <label style={labelStyle}>Due Date</label>
+                  <input type="date" style={inputStyle} value={autoGenForm.dueDate} onChange={e => setAutoGenForm({...autoGenForm, dueDate: e.target.value})} required />
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Department Filter <span style={{ fontWeight: 400, color: '#94a3b8' }}>(optional — leave blank for all)</span></label>
+                <select style={inputStyle} value={autoGenForm.department} onChange={e => setAutoGenForm({...autoGenForm, department: e.target.value})}>
+                  <option value="">All Departments</option>
+                  <option value="Computer Science">Computer Science</option>
+                  <option value="Electrical Engineering">Electrical Engineering</option>
+                  <option value="Business School">Business School</option>
+                  <option value="Mathematics">Mathematics</option>
+                </select>
+              </div>
+
+              {error && <p style={{ fontSize: 13, color: '#f43f5e', background: 'rgba(244,63,94,0.06)', padding: '10px 14px', borderRadius: 10, margin: 0 }}>{error}</p>}
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                <button type="button" onClick={() => setAutoGenModalOpen(false)} style={cancelBtnStyle}>Cancel</button>
+                <button type="submit" disabled={autoGenSaving} style={{ ...primaryBtnStyle, flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg, #7c3aed, #6366f1)', boxShadow: '0 4px 15px rgba(99,102,241,0.35)' }}>
+                  {autoGenSaving ? <Loader2 size={17} className="animate-spin" /> : <Zap size={17} />}
+                  {autoGenSaving ? 'Generating...' : 'Generate All Challans'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Fee Generation Modal */}
       {feeModalOpen && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginBottom: 24 }}>Generate Fee Challan</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginBottom: 20 }}>Generate Fee Challan</h2>
+
+            {/* Modal Type Selector */}
+            <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 12, gap: 4, marginBottom: 24 }}>
+              <button 
+                type="button"
+                onClick={() => setFeeModalType('single')}
+                style={{ flex: 1, padding: '8px 16px', borderRadius: 10, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: feeModalType === 'single' ? '#fff' : 'transparent', color: feeModalType === 'single' ? '#6366f1' : '#64748b', transition: 'all 0.2s', boxShadow: feeModalType === 'single' ? '0 2px 6px rgba(0,0,0,0.05)' : 'none' }}
+              >
+                Single Student
+              </button>
+              <button 
+                type="button"
+                onClick={() => setFeeModalType('bulk')}
+                style={{ flex: 1, padding: '8px 16px', borderRadius: 10, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: feeModalType === 'bulk' ? '#fff' : 'transparent', color: feeModalType === 'bulk' ? '#6366f1' : '#64748b', transition: 'all 0.2s', boxShadow: feeModalType === 'bulk' ? '0 2px 6px rgba(0,0,0,0.05)' : 'none' }}
+              >
+                Bulk Department
+              </button>
+            </div>
+
             <form onSubmit={handleCreateFee} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <div>
-                <label style={labelStyle}>Select Student</label>
-                <select style={inputStyle} value={feeForm.studentId} onChange={e => setFeeForm({...feeForm, studentId: e.target.value})} required>
-                  {students.map(s => <option key={s._id} value={s._id}>{s.name} ({s.campusID})</option>)}
-                </select>
-              </div>
+              {feeModalType === 'single' ? (
+                <div>
+                  <label style={labelStyle}>Select Student</label>
+                  <select style={inputStyle} value={feeForm.studentId} onChange={e => setFeeForm({...feeForm, studentId: e.target.value})} required>
+                    {students.map(s => <option key={s._id} value={s._id}>{s.name} ({s.campusID})</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label style={labelStyle}>Select Department</label>
+                  <select style={inputStyle} value={bulkFeeForm.department} onChange={e => setBulkFeeForm({...bulkFeeForm, department: e.target.value})} required>
+                    <option value="Computer Science">Computer Science</option>
+                    <option value="Electrical Engineering">Electrical Engineering</option>
+                    <option value="Business School">Business School</option>
+                    <option value="Mathematics">Mathematics</option>
+                  </select>
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
                   <label style={labelStyle}>Semester Term</label>
-                  <input style={inputStyle} value={feeForm.semester} onChange={e => setFeeForm({...feeForm, semester: e.target.value})} placeholder="e.g. Fall 2025" required />
+                  {feeModalType === 'single' ? (
+                    <input style={inputStyle} value={feeForm.semester} onChange={e => setFeeForm({...feeForm, semester: e.target.value})} placeholder="e.g. Fall 2025" required />
+                  ) : (
+                    <input style={inputStyle} value={bulkFeeForm.semester} onChange={e => setBulkFeeForm({...bulkFeeForm, semester: e.target.value})} placeholder="e.g. Fall 2025" required />
+                  )}
                 </div>
                 <div>
                   <label style={labelStyle}>Due Date</label>
-                  <input type="date" style={inputStyle} value={feeForm.dueDate} onChange={e => setFeeForm({...feeForm, dueDate: e.target.value})} required />
+                  {feeModalType === 'single' ? (
+                    <input type="date" style={inputStyle} value={feeForm.dueDate} onChange={e => setFeeForm({...feeForm, dueDate: e.target.value})} required />
+                  ) : (
+                    <input type="date" style={inputStyle} value={bulkFeeForm.dueDate} onChange={e => setBulkFeeForm({...bulkFeeForm, dueDate: e.target.value})} required />
+                  )}
                 </div>
               </div>
+
               <div>
                 <label style={labelStyle}>Fee Amount (PKR)</label>
-                <input type="number" style={inputStyle} value={feeForm.amount} onChange={e => setFeeForm({...feeForm, amount: Number(e.target.value)})} required />
+                {feeModalType === 'single' ? (
+                  <input type="number" style={inputStyle} value={feeForm.amount} onChange={e => setFeeForm({...feeForm, amount: Number(e.target.value)})} required />
+                ) : (
+                  <input type="number" style={inputStyle} value={bulkFeeForm.amount} onChange={e => setBulkFeeForm({...bulkFeeForm, amount: Number(e.target.value)})} required />
+                )}
               </div>
+
               <div>
                 <label style={labelStyle}>Remarks / Description (Optional)</label>
-                <input style={inputStyle} value={feeForm.remarks} onChange={e => setFeeForm({...feeForm, remarks: e.target.value})} placeholder="e.g. Tuition fee + Lab charges" />
+                {feeModalType === 'single' ? (
+                  <input style={inputStyle} value={feeForm.remarks} onChange={e => setFeeForm({...feeForm, remarks: e.target.value})} placeholder="e.g. Tuition fee + Lab charges" />
+                ) : (
+                  <input style={inputStyle} value={bulkFeeForm.remarks} onChange={e => setBulkFeeForm({...bulkFeeForm, remarks: e.target.value})} placeholder="e.g. Tuition fee + Lab charges" />
+                )}
               </div>
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 12 }}>
                 <button type="button" onClick={() => setFeeModalOpen(false)} style={cancelBtnStyle}>Cancel</button>
                 <button type="submit" disabled={feeSaving} style={primaryBtnStyle}>
                   {feeSaving ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />} Generate
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Fee Modal */}
+      {editFeeModalOpen && (
+        <div style={modalOverlayStyle}>
+          <div style={modalContentStyle}>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginBottom: 24 }}>Edit Student Fee Details</h2>
+            <form onSubmit={handleEditFeeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div>
+                <label style={labelStyle}>Student</label>
+                <input style={{ ...inputStyle, background: '#f1f5f9', cursor: 'not-allowed', color: '#64748b' }} value={`${editFeeForm.studentName} (${editFeeForm.studentID})`} disabled />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Semester Term</label>
+                  <input style={inputStyle} value={editFeeForm.semester} onChange={e => setEditFeeForm({...editFeeForm, semester: e.target.value})} placeholder="e.g. Fall 2025" required />
+                </div>
+                <div>
+                  <label style={labelStyle}>Due Date</label>
+                  <input type="date" style={inputStyle} value={editFeeForm.dueDate} onChange={e => setEditFeeForm({...editFeeForm, dueDate: e.target.value})} required />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Fee Amount (PKR)</label>
+                  <input type="number" style={inputStyle} value={editFeeForm.amount} onChange={e => setEditFeeForm({...editFeeForm, amount: Number(e.target.value)})} required />
+                </div>
+                <div>
+                  <label style={labelStyle}>Status</label>
+                  <select style={inputStyle} value={editFeeForm.status} onChange={e => setEditFeeForm({...editFeeForm, status: e.target.value})} required>
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Overdue">Overdue</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Remarks / Description (Optional)</label>
+                <input style={inputStyle} value={editFeeForm.remarks} onChange={e => setEditFeeForm({...editFeeForm, remarks: e.target.value})} placeholder="e.g. Tuition fee + Lab charges" />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 12 }}>
+                <button type="button" onClick={() => setEditFeeModalOpen(false)} style={cancelBtnStyle}>Cancel</button>
+                <button type="submit" disabled={feeSaving} style={primaryBtnStyle}>
+                  {feeSaving ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />} Save Changes
                 </button>
               </div>
             </form>
@@ -549,7 +923,7 @@ const inputStyle = { width: '100%', height: 44, padding: '0 14px', background: '
 const primaryBtnStyle = { height: 44, padding: '0 20px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(99,102,241,0.25)' };
 const cancelBtnStyle = { height: 44, padding: '0 20px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, fontWeight: 600, color: '#64748b', cursor: 'pointer' };
 const modalOverlayStyle = { position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(8px)' };
-const modalContentStyle = { width: '100%', maxWidth: 540, background: '#fff', borderRadius: 24, padding: 36, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.3s ease-out' };
+const modalContentStyle = { position: 'relative', width: '100%', maxWidth: 540, background: '#fff', borderRadius: 24, padding: 36, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.3s ease-out' };
 const previewModalContentStyle = { width: '90%', maxWidth: 820, background: '#fff', borderRadius: 24, padding: 32, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.3s ease-out', display: 'flex', flexDirection: 'column', maxHeight: '90vh' };
 
 // Standalone helpers
@@ -649,12 +1023,16 @@ const triggerPrint = (htmlContent, title = 'Document') => {
 
 const generateFeeChallanHtml = (fee) => {
   const shortId = `RU-${fee._id.substring(fee._id.length - 6).toUpperCase()}`;
+  const original = fee.originalAmount || fee.amount || 0;
+  const discount = fee.discountAmount || 0;
+  const final = fee.amount || 0;
+
   const breakdown = {
-    tuition: Math.round(fee.amount * 0.85),
-    lab: Math.round(fee.amount * 0.10),
-    library: Math.round(fee.amount * 0.05)
+    tuition: Math.round(original * 0.85),
+    lab: Math.round(original * 0.10),
+    library: Math.round(original * 0.05)
   };
-  const totalAfterDue = fee.amount + 500;
+  const totalAfterDue = final + 500;
   
   const singleCopy = (copyName) => `
     <div style="padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; background: #fff; position: relative; box-sizing: border-box; height: 82mm; display: flex; flex-direction: column; justify-content: space-between; page-break-inside: avoid;">
@@ -705,9 +1083,26 @@ const generateFeeChallanHtml = (fee) => {
             <td style="padding: 3px 6px; border: 1px solid #e2e8f0;">Library Fund & Insurance (5%)</td>
             <td style="padding: 3px 6px; border: 1px solid #e2e8f0; text-align: right;">${formatCurrencyHelper(breakdown.library)}</td>
           </tr>
-          <tr style="background: #faf5ff; font-weight: bold;">
-            <td style="padding: 3px 6px; border: 1px solid #e2e8f0;">Total Payable (Within Due Date)</td>
-            <td style="padding: 3px 6px; border: 1px solid #e2e8f0; text-align: right; color: #6366f1; font-size: 10px;">${formatCurrencyHelper(fee.amount)}</td>
+          
+          <tr style="background: #f8fafc; font-weight: bold; border-top: 1.5px solid #cbd5e1;">
+            <td style="padding: 3px 6px; border: 1px solid #e2e8f0;">Total Base Tuition Fee</td>
+            <td style="padding: 3px 6px; border: 1px solid #e2e8f0; text-align: right;">${formatCurrencyHelper(original)}</td>
+          </tr>
+
+          ${discount > 0 ? `
+          <tr style="background: rgba(16,185,129,0.06); font-weight: bold; color: #10b981;">
+            <td style="padding: 3px 6px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 4px;">
+              <span>Concession Deduction (${fee.concessionType === 'old_student' ? 'Old Student 25%' : 'Academic Merit 50%'})</span>
+            </td>
+            <td style="padding: 3px 6px; border: 1px solid #e2e8f0; text-align: right; color: #10b981;">
+              - ${formatCurrencyHelper(discount)}
+            </td>
+          </tr>
+          ` : ''}
+
+          <tr style="background: #faf5ff; font-weight: bold; border-top: 1.5px solid #cbd5e1;">
+            <td style="padding: 3px 6px; border: 1px solid #e2e8f0;">Net Payable (Within Due Date)</td>
+            <td style="padding: 3px 6px; border: 1px solid #e2e8f0; text-align: right; color: #6366f1; font-size: 10px;">${formatCurrencyHelper(final)}</td>
           </tr>
           <tr style="color: #ef4444; font-size: 8px;">
             <td style="padding: 3px 6px; border: 1px solid #e2e8f0;">Late Payment Fine (After Due Date)</td>

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { 
-  getFees, createFee, updateFeeStatus, deleteFee,
+  getFees, createFee, updateFeeStatus, deleteFee, createBulkFees, updateFee, autoGenerateFees,
   getSalaries, createSalary, updateSalaryStatus, deleteSalary 
 } from '../controllers/financeController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
@@ -11,10 +11,13 @@ const router = Router();
 router.use(protect);
 
 // ─── FEE ROUTES ───────────────────────────────────────────────────────────────
-// Students can view their fees; Admins can do all
 router.get('/fees', getFees);
 router.post('/fees', authorize('admin'), createFee);
+router.post('/fees/auto', authorize('admin'), autoGenerateFees);
+router.post('/fees/bulk', authorize('admin'), createBulkFees);
+router.put('/fees/:id', authorize('admin'), updateFee);
 router.put('/fees/:id/status', authorize('admin'), updateFeeStatus);
+router.delete('/fees/:id', authorize('admin'), deleteFee);
 router.delete('/fees/:id', authorize('admin'), deleteFee);
 
 // ─── SALARY ROUTES ────────────────────────────────────────────────────────────

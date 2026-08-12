@@ -34,7 +34,8 @@ export const register = async (req, res, next) => {
   try {
     const { 
       name, email, password, role, campusID, department,
-      fatherName, dob, gender, phone, address, session, program, semester, section 
+      fatherName, dob, gender, phone, address, session, program, semester, section,
+      cgpa, concessionType
     } = req.body;
 
     let finalCampusID = campusID;
@@ -44,6 +45,10 @@ export const register = async (req, res, next) => {
     if (role === 'student') {
       if (!session || !program) {
         return res.status(400).json({ success: false, message: 'Session and Program are required for students' });
+      }
+
+      if (concessionType === 'academic_merit' && (!cgpa || Number(cgpa) < 3.5)) {
+        return res.status(400).json({ success: false, message: 'Academic Merit concession requires a CGPA of 3.5 or higher.' });
       }
 
       const lastStudent = await User.findOne({ session, program })
@@ -108,7 +113,9 @@ export const register = async (req, res, next) => {
       role, 
       campusID: finalCampusID?.trim(), 
       department,
-      fatherName, dob, gender, phone, address, session, program, semester, section
+      fatherName, dob, gender, phone, address, session, program, semester, section,
+      cgpa: cgpa ? Number(cgpa) : 0.0,
+      concessionType: concessionType || 'none'
     });
 
     sendToken(user, 201, res);

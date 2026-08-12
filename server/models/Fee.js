@@ -17,6 +17,19 @@ const feeSchema = new mongoose.Schema(
       required: [true, 'Fee amount is required'],
       min: [0, 'Amount cannot be negative'],
     },
+    originalAmount: {
+      type: Number,
+      default: 0
+    },
+    concessionType: {
+      type: String,
+      enum: ['none', 'old_student', 'academic_merit'],
+      default: 'none',
+    },
+    discountAmount: {
+      type: Number,
+      default: 0
+    },
     dueDate: {
       type: String, // YYYY-MM-DD
       required: [true, 'Due date is required'],

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Calendar, BookOpen, CheckCircle2, XCircle, Clock, 
   AlertCircle, Save, Loader2, Search, Filter, BarChart2,
-  FileSpreadsheet, UserCheck, UserX, AlertTriangle
+  FileSpreadsheet, UserCheck, UserX, AlertTriangle, ShieldAlert
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,6 +22,8 @@ export default function AttendancePage() {
   const [activeTab, setActiveTab] = useState('mark'); // 'mark' | 'analytics'
   const [summary, setSummary] = useState([]);
   const [totalSessions, setTotalSessions] = useState(0);
+  const [leaveLimit, setLeaveLimit] = useState(4);
+  const [withdrawThreshold, setWithdrawThreshold] = useState(2);
 
   // Fetch available courses on mount
   useEffect(() => {
@@ -58,6 +60,9 @@ export default function AttendancePage() {
         if (data.success) {
           setRecorded(data.recorded);
           setRecords(data.data.records || []);
+          if (data.freeAbsents !== undefined) setLeaveLimit(data.freeAbsents);
+          if (data.withdrawThreshold !== undefined) setWithdrawThreshold(data.withdrawThreshold);
+          if (data.leaveLimit !== undefined) setLeaveLimit(data.leaveLimit);
         }
       } catch (err) {
         console.error('Failed to fetch attendance');
@@ -328,74 +333,143 @@ export default function AttendancePage() {
                 <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#fff' }}>
                   <th style={thStyle}>Student Name</th>
                   <th style={thStyle}>Roll Number</th>
+                  <th style={thStyle}>Leaves / Absents</th>
                   <th style={thStyle}>Attendance Status</th>
                   <th style={thStyle}>Remarks / Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={4} style={{ padding: 60, textAlign: 'center' }}><Loader2 className="animate-spin" style={{ margin: '0 auto', color: '#6366f1' }} /></td></tr>
+                  <tr><td colSpan={5} style={{ padding: 60, textAlign: 'center' }}><Loader2 className="animate-spin" style={{ margin: '0 auto', color: '#6366f1' }} /></td></tr>
                 ) : filteredRecords.length === 0 ? (
-                  <tr><td colSpan={4} style={{ padding: 60, textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>No students found in this course roster.</td></tr>
-                ) : filteredRecords.map((record) => (
-                  <tr key={record.student._id} style={{ borderBottom: '1px solid #f8fafc' }}>
-                    <td style={tdStyle}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(99,102,241,0.08)', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>
-                          {record.student.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  <tr><td colSpan={5} style={{ padding: 60, textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>No students found in this course roster.</td></tr>
+                ) : filteredRecords.map((record) => {
+                  const leaveUsed = record.cumulativeLeave ?? 0;
+                  const absentTotal = record.cumulativeAbsent ?? 0;
+                  const leaveExhausted = leaveUsed >= leaveLimit;
+                  const showWithdraw = record.withdraw || absentTotal > withdrawThreshold;
+                  const studentId = record.student._id;
+                  return (
+                  <>
+                    {/* WITHDRAW WARNING BANNER */}
+                    {showWithdraw && (
+                      <tr key={`withdraw-${studentId}`}>
+                        <td colSpan={5} style={{ padding: '6px 20px 0', background: 'transparent' }}>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            background: 'linear-gradient(90deg, rgba(239,68,68,0.12), rgba(239,68,68,0.06))',
+                            border: '1px solid rgba(239,68,68,0.35)',
+                            borderRadius: 10, padding: '8px 16px',
+                            color: '#dc2626', fontWeight: 700, fontSize: 12.5,
+                            animation: 'fadeIn 0.3s ease-out'
+                          }}>
+                            <AlertTriangle size={15} />
+                            ⚠ WITHDRAW WARNING — {record.student.name} has exceeded the allowed absents limit ({leaveLimit} free + {withdrawThreshold} max). Subject to course withdrawal.
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    <tr key={studentId} style={{ borderBottom: '1px solid #f8fafc', background: showWithdraw ? 'rgba(239,68,68,0.03)' : leaveExhausted ? 'rgba(244,63,94,0.02)' : 'transparent' }}>
+                      <td style={tdStyle}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(99,102,241,0.08)', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>
+                            {record.student.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p style={{ fontSize: 14, fontWeight: 600, color: showWithdraw ? '#dc2626' : '#0f172a' }}>{record.student.name}</p>
+                            <p style={{ fontSize: 11.5, color: '#94a3b8' }}>{record.student.email}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{record.student.name}</p>
-                          <p style={{ fontSize: 11.5, color: '#94a3b8' }}>{record.student.email}</p>
+                      </td>
+                      <td style={tdStyle}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#6366f1', fontFamily: 'monospace', background: 'rgba(99,102,241,0.06)', padding: '2px 8px', borderRadius: 6 }}>
+                          {record.student.campusID}
+                        </span>
+                      </td>
+                      {/* ── Leave & Absent Count Badges ── */}
+                      <td style={tdStyle}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          {/* Leave Badge */}
+                          <div
+                            title={leaveExhausted ? `Leave quota (${leaveLimit}) exhausted! Further absents counted as real absents.` : `${leaveUsed} of ${leaveLimit} free absents used`}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700,
+                              background: leaveExhausted ? 'rgba(244,63,94,0.12)' : 'rgba(14,165,233,0.1)',
+                              color: leaveExhausted ? '#f43f5e' : '#0ea5e9',
+                              border: `1px solid ${leaveExhausted ? 'rgba(244,63,94,0.25)' : 'rgba(14,165,233,0.2)'}`,
+                              cursor: 'help'
+                            }}
+                          >
+                            {leaveExhausted ? <ShieldAlert size={12} /> : <Clock size={12} />}
+                            Leave: {leaveUsed}/{leaveLimit}
+                          </div>
+                          {/* Absent Badge */}
+                          <div
+                            title={`Real absents (beyond ${leaveLimit} free): ${absentTotal}`}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700,
+                              background: showWithdraw ? 'rgba(239,68,68,0.15)' : absentTotal > 0 ? 'rgba(244,63,94,0.08)' : 'rgba(100,116,139,0.08)',
+                              color: showWithdraw ? '#dc2626' : absentTotal > 0 ? '#f43f5e' : '#94a3b8',
+                              border: `1px solid ${showWithdraw ? 'rgba(239,68,68,0.4)' : absentTotal > 0 ? 'rgba(244,63,94,0.2)' : '#e2e8f0'}`,
+                              cursor: 'help'
+                            }}
+                          >
+                            <XCircle size={12} />
+                            Absent: {absentTotal}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td style={tdStyle}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#6366f1', fontFamily: 'monospace', background: 'rgba(99,102,241,0.06)', padding: '2px 8px', borderRadius: 6 }}>
-                        {record.student.campusID}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        {['Present', 'Absent', 'Late', 'Leave'].map((status) => {
-                          const isSelected = record.status === status;
-                          const activeColor = 
-                            status === 'Present' ? '#10b981' :
-                            status === 'Absent' ? '#f43f5e' :
-                            status === 'Late' ? '#eab308' : '#0ea5e9';
-                          
-                          return (
-                            <button
-                              key={status}
-                              onClick={() => handleStatusChange(record.student._id, status)}
-                              style={{
-                                padding: '6px 14px', borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
-                                border: `1px solid ${isSelected ? activeColor : '#e2e8f0'}`,
-                                background: isSelected ? (
-                                  status === 'Present' ? 'rgba(16,185,129,0.1)' :
-                                  status === 'Absent' ? 'rgba(244,63,94,0.1)' :
-                                  status === 'Late' ? 'rgba(234,179,8,0.1)' : 'rgba(14,165,233,0.1)'
-                                ) : '#fff',
-                                color: isSelected ? activeColor : '#64748b',
-                                transition: 'all 0.15s'
-                              }}
-                            >
-                              {status}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </td>
-                    <td style={tdStyle}>
-                      <input 
-                        placeholder="Optional remarks..." 
-                        value={record.remarks || ''}
-                        onChange={e => handleRemarksChange(record.student._id, e.target.value)}
-                        style={{ width: '100%', height: 36, padding: '0 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none' }}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td style={tdStyle}>
+                        {showWithdraw ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)' }}>
+                            <ShieldAlert size={14} color="#dc2626" />
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#dc2626' }}>WITHDRAWN — Attendance Locked</span>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {['Present', 'Absent', 'Late'].map((status) => {
+                              const isSelected = record.status === status;
+                              const activeColor = 
+                                status === 'Present' ? '#10b981' :
+                                status === 'Absent' ? '#f43f5e' : '#eab308';
+                              
+                              return (
+                                <button
+                                  key={status}
+                                  onClick={() => handleStatusChange(studentId, status)}
+                                  style={{
+                                    padding: '6px 14px', borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                                    border: `1px solid ${isSelected ? activeColor : '#e2e8f0'}`,
+                                    background: isSelected ? (
+                                      status === 'Present' ? 'rgba(16,185,129,0.1)' :
+                                      status === 'Absent' ? 'rgba(244,63,94,0.1)' : 'rgba(234,179,8,0.1)'
+                                    ) : '#fff',
+                                    color: isSelected ? activeColor : '#64748b',
+                                    transition: 'all 0.15s',
+                                  }}
+                                >
+                                  {status}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </td>
+                      <td style={tdStyle}>
+                        <input 
+                          placeholder={showWithdraw ? 'Locked — student withdrawn' : 'Optional remarks...'} 
+                          value={record.remarks || ''}
+                          onChange={e => !showWithdraw && handleRemarksChange(studentId, e.target.value)}
+                          disabled={showWithdraw}
+                          style={{ width: '100%', height: 36, padding: '0 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none', opacity: showWithdraw ? 0.5 : 1, cursor: showWithdraw ? 'not-allowed' : 'text' }}
+                        />
+                      </td>
+                    </tr>
+                  </>
+                  );
+                })}
               </tbody>
             </table>
 

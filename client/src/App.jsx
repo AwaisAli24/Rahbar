@@ -16,6 +16,8 @@ import SettingsPage from './pages/SettingsPage';
 import FinancePage from './pages/FinancePage';
 import NoticeBoardPage from './pages/NoticeBoardPage';
 import PredictiveAnalyticsPage from './pages/PredictiveAnalyticsPage';
+import TranscriptsPage from './pages/TranscriptsPage';
+import FacultyAttendancePage from './pages/FacultyAttendancePage';
 
 // ── Placeholder for future pages ─────────────────────────────────────────────
 const Placeholder = ({ name }) => (
@@ -45,8 +47,10 @@ const PAGES = {
   timetable:  <TimetablePage />,
   finance:    <FinancePage />,
   notices:    <NoticeBoardPage />,
-  analytics:  <PredictiveAnalyticsPage />,
-  settings:   <SettingsPage />,
+  analytics:            <PredictiveAnalyticsPage />,
+  settings:             <SettingsPage />,
+  'transcripts':        <TranscriptsPage />,
+  'faculty-attendance': <FacultyAttendancePage />,
 };
 
 // ── Authenticated Admin Shell ─────────────────────────────────────────────────

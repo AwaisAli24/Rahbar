@@ -54,6 +54,9 @@ const userSchema = new mongoose.Schema(
     program: String,   // e.g., BCS
     semester: { type: Number, default: 1 },
     section: { type: String, uppercase: true },
+    profilePicture: { type: String, default: null }, // stored filename
+    cgpa: { type: Number, default: 0.0 },
+    concessionType: { type: String, enum: ['none', 'old_student', 'academic_merit'], default: 'none' },
     
     // ── Faculty Specific Fields ──────────────────────────────────────────────
     designation: String,

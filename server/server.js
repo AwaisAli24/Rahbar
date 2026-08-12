@@ -3,6 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { connectDB } from './config/db.js';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ─── Load Environment Variables ───────────────────────────────────────────────
 dotenv.config();
@@ -20,6 +24,8 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import financeRoutes from './routes/financeRoutes.js';
 import noticeRoutes from './routes/noticeRoutes.js';
 import predictionRoutes from './routes/predictionRoutes.js';
+import facultyAttendanceRoutes from './routes/facultyAttendanceRoutes.js';
+import transcriptRoutes from './routes/transcriptRoutes.js';
 
 // ─── Initialize App ───────────────────────────────────────────────────────────
 const app = express();
@@ -36,6 +42,7 @@ app.use(cors({
 }));
 app.use(express.json());                    // Parse JSON bodies
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // serve profile pics
 
 // ─── Request Logger (Dev Only) ────────────────────────────────────────────────
 if (process.env.NODE_ENV === 'development') {
@@ -58,6 +65,8 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/notices', noticeRoutes);
 app.use('/api/predictions', predictionRoutes);
+app.use('/api/faculty-attendance', facultyAttendanceRoutes);
+app.use('/api/transcripts', transcriptRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {

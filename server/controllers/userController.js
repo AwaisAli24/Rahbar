@@ -1,5 +1,7 @@
 import User from '../models/User.js';
 import Course from '../models/Course.js';
+import fs from 'fs';
+import path from 'path';
 
 // @desc    Get all users (with optional role filter)
 // @route   GET /api/users
@@ -48,21 +50,30 @@ export const getUserStats = async (req, res, next) => {
 // @access  Private/Admin
 export const updateUser = async (req, res, next) => {
   try {
-    const allowed = ['name', 'fatherName', 'phone', 'address', 'gender', 'dob', 'semester', 'section', 'isActive'];
+    const userToUpdate = await User.findById(req.params.id);
+    if (!userToUpdate) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const allowed = ['name', 'fatherName', 'phone', 'address', 'gender', 'dob', 'semester', 'section', 'isActive', 'profilePicture', 'designation', 'specialization', 'cgpa', 'concessionType'];
     const updates = {};
     allowed.forEach(field => {
       if (req.body[field] !== undefined) updates[field] = req.body[field];
     });
+
+    // Validation for student concessions
+    const finalConcessionType = updates.concessionType !== undefined ? updates.concessionType : userToUpdate.concessionType;
+    const finalCgpa = updates.cgpa !== undefined ? Number(updates.cgpa) : userToUpdate.cgpa;
+
+    if (finalConcessionType === 'academic_merit' && finalCgpa < 3.5) {
+      return res.status(400).json({ success: false, message: 'Academic Merit concession requires a CGPA of 3.5 or higher.' });
+    }
 
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { $set: updates },
       { new: true, runValidators: true }
     );
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
 
     res.status(200).json({
       success: true,
@@ -90,6 +101,37 @@ export const deleteUser = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'User removed',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Upload / replace student profile picture
+// @route   POST /api/users/:id/photo
+// @access  Private/Admin
+export const uploadProfilePicture = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    // Delete old picture if exists
+    if (user.profilePicture) {
+      const old = path.join(process.cwd(), 'uploads', 'profiles', user.profilePicture);
+      if (fs.existsSync(old)) fs.unlinkSync(old);
+    }
+
+    user.profilePicture = req.file.filename;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile picture updated',
+      data: { profilePicture: req.file.filename },
     });
   } catch (err) {
     next(err);

@@ -3,15 +3,27 @@ import {
   User, BookOpen, Calendar, Clock, MapPin, 
   CheckCircle2, AlertCircle, AlertTriangle, 
   GraduationCap, Award, Building2, Phone, Mail,
-  Loader2, BarChart2, ChevronRight, FileText, Megaphone, BellRing, Info
+  Loader2, BarChart2, ChevronRight, FileText, Megaphone, BellRing, Info, Printer
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+const getFacultyName = (fac) => {
+  if (!fac) return 'Assigned Faculty';
+  if (Array.isArray(fac)) {
+    const names = fac.map(f => (typeof f === 'object' ? f.name : f)).filter(Boolean);
+    return names.length > 0 ? names.join(', ') : 'Assigned Faculty';
+  }
+  if (typeof fac === 'object') {
+    return fac.name || 'Assigned Faculty';
+  }
+  return String(fac);
+};
+
 export default function StudentPortalPage() {
   const { token, user } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'courses' | 'attendance' | 'exams' | 'timetable'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'courses' | 'attendance' | 'exams' | 'transcript' | 'timetable'
   
   // Data State
   const [courses, setCourses] = useState([]);
@@ -71,7 +83,7 @@ export default function StudentPortalPage() {
   useEffect(() => {
     const fetchGrades = async () => {
       const userId = user?._id || user?.id;
-      if (!userId || activeTab !== 'exams') return;
+      if (!userId || (activeTab !== 'exams' && activeTab !== 'transcript')) return;
       setGradesLoading(true);
       try {
         const res = await fetch(`/api/assessments/student/${userId}`, {
@@ -226,6 +238,7 @@ export default function StudentPortalPage() {
           { id: 'courses',    label: 'My Courses',        icon: GraduationCap },
           { id: 'attendance', label: 'Attendance Report', icon: BarChart2 },
           { id: 'exams',      label: 'Exams & Grades',    icon: Award },
+          { id: 'transcript', label: 'Academic Transcript', icon: Printer },
           { id: 'timetable',  label: 'Class Schedule',    icon: Calendar },
           { id: 'notices',    label: 'Notice Board',      icon: Megaphone }
         ].map(({ id, label, icon: Icon }) => {
@@ -265,7 +278,7 @@ export default function StudentPortalPage() {
                       <span style={{ fontSize: 12, fontWeight: 700, color: '#6366f1', background: 'rgba(99,102,241,0.08)', padding: '4px 10px', borderRadius: 8 }}>{course.code}</span>
                       <div>
                         <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{course.title}</p>
-                        <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Instructor: {course.faculty?.name || 'Assigned Staff'}</p>
+                        <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Instructor: {getFacultyName(course.faculty)}</p>
                       </div>
                     </div>
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b', background: '#fff', padding: '4px 10px', borderRadius: 8, border: '1px solid #e2e8f0' }}>{course.creditHours} Credits</span>
@@ -351,7 +364,7 @@ export default function StudentPortalPage() {
                 <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={14} color="#64748b" /></div>
                 <div>
                   <p style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>Course Instructor</p>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{course.faculty?.name || 'Assigned Staff'}</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{getFacultyName(course.faculty)}</p>
                 </div>
               </div>
             </div>
@@ -485,6 +498,201 @@ export default function StudentPortalPage() {
         </div>
       )}
 
+      {/* ── TAB: OFFICIAL ACADEMIC TRANSCRIPT ── */}
+      {activeTab === 'transcript' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Top Actions Bar (Hidden on Print) */}
+          <div className="no-print" style={{ 
+            background: '#fff', borderRadius: 20, border: '1px solid rgba(99,102,241,0.12)', 
+            padding: '20px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16
+          }}>
+            <div>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>Official Academic Transcript</h2>
+              <p style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Semester-wise breakdown of subjects, earned grades, SGPA, and overall CGPA.</p>
+            </div>
+            <button
+              onClick={() => window.print()}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px',
+                background: '#6366f1', color: '#fff', border: 'none', borderRadius: 12,
+                fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(99,102,241,0.3)', transition: 'all 0.15s'
+              }}
+            >
+              <Printer size={18} /> Print / Save Transcript
+            </button>
+          </div>
+
+          {/* Transcript Document Container */}
+          <div id="printable-transcript" style={{
+            background: '#fff', borderRadius: 24, border: '1px solid #cbd5e1',
+            padding: '40px 48px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+            color: '#1e293b'
+          }}>
+            {/* Header */}
+            <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: 24, marginBottom: 28 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#6366f1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 20 }}>R</div>
+                <h1 style={{ fontSize: 24, fontWeight: 900, letterSpacing: '0.05em', color: '#0f172a', textTransform: 'uppercase', margin: 0 }}>RAHBAR UNIVERSITY OF TECHNOLOGY</h1>
+              </div>
+              <p style={{ fontSize: 13, fontWeight: 800, color: '#475569', letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 4 }}>OFFICIAL ACADEMIC TRANSCRIPT</p>
+              <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Date of Issue: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            </div>
+
+            {/* Student Info Card */}
+            <div style={{ background: '#f8fafc', borderRadius: 16, border: '1px solid #e2e8f0', padding: '20px 24px', marginBottom: 32 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px 24px' }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Student Name:</span>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', marginTop: 2 }}>{user?.name}</p>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Campus ID / Roll No:</span>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: '#6366f1', fontFamily: 'monospace', marginTop: 2 }}>{user?.campusID}</p>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Degree Program:</span>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', marginTop: 2 }}>{user?.program || 'BCS'} (Computer Science)</p>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Department:</span>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', marginTop: 2 }}>{user?.department || 'Computer Science'}</p>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Academic Session:</span>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', marginTop: 2 }}>{user?.session || 'FA22'}</p>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Current Semester:</span>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', marginTop: 2 }}>Semester {user?.semester || 6}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Grades & Semester Tables */}
+            {gradesLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Loader2 className="animate-spin" color="#6366f1" size={28} /></div>
+            ) : gradesSummary.length === 0 ? (
+              <p style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 14, background: '#f8fafc', borderRadius: 12 }}>No semester course grades recorded on transcript.</p>
+            ) : (
+              (() => {
+                const currentSemesterNumber = user?.semester || 6;
+
+                // Calculate semester quality points and SGPA
+                const currentCourses = gradesSummary.map(item => {
+                  const pts = (item.gpa || 0) * (item.course?.creditHours || 3);
+                  return { ...item, qualityPoints: Math.round(pts * 10) / 10 };
+                });
+
+                const totalSemCredits = currentCourses.reduce((sum, c) => sum + (c.course?.creditHours || 3), 0);
+                const totalSemPts = currentCourses.reduce((sum, c) => sum + c.qualityPoints, 0);
+                const sgpa = totalSemCredits > 0 ? (totalSemPts / totalSemCredits).toFixed(2) : '0.00';
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+                    
+                    {/* Semester Table Block */}
+                    <div style={{ border: '1px solid #cbd5e1', borderRadius: 16, overflow: 'hidden' }}>
+                      <div style={{ background: '#0f172a', color: '#fff', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Semester {currentSemesterNumber} — Course Grades</span>
+                        <span style={{ fontSize: 11.5, fontWeight: 700, background: 'rgba(255,255,255,0.15)', padding: '2px 10px', borderRadius: 6 }}>REGULAR SESSION</span>
+                      </div>
+
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                        <thead>
+                          <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
+                            <th style={{ padding: '10px 16px', fontWeight: 800, color: '#334155' }}>Code</th>
+                            <th style={{ padding: '10px 16px', fontWeight: 800, color: '#334155' }}>Subject Title</th>
+                            <th style={{ padding: '10px 16px', fontWeight: 800, color: '#334155', textAlign: 'center' }}>Cr. Hrs</th>
+                            <th style={{ padding: '10px 16px', fontWeight: 800, color: '#334155', textAlign: 'center' }}>Score (%)</th>
+                            <th style={{ padding: '10px 16px', fontWeight: 800, color: '#334155', textAlign: 'center' }}>Grade</th>
+                            <th style={{ padding: '10px 16px', fontWeight: 800, color: '#334155', textAlign: 'center' }}>GPA</th>
+                            <th style={{ padding: '10px 16px', fontWeight: 800, color: '#334155', textAlign: 'right' }}>Quality Points</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {currentCourses.map(item => (
+                            <tr key={item.course.id || item.course._id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                              <td style={{ padding: '10px 16px', fontWeight: 700, fontFamily: 'monospace', color: '#6366f1' }}>{item.course.code}</td>
+                              <td style={{ padding: '10px 16px', fontWeight: 700, color: '#0f172a' }}>{item.course.title}</td>
+                              <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 600 }}>{item.course.creditHours}</td>
+                              <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 600 }}>{item.cumulativeScore}%</td>
+                              <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 800, color: item.grade === 'A' || item.grade === 'A-' ? '#10b981' : '#1e293b' }}>{item.grade}</td>
+                              <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 700 }}>{(item.gpa || 0).toFixed(1)}</td>
+                              <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>{item.qualityPoints.toFixed(1)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+
+                      {/* Semester Footer */}
+                      <div style={{ background: '#f8fafc', padding: '12px 20px', borderTop: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                        <div style={{ display: 'flex', gap: 24, fontSize: 12.5, color: '#475569' }}>
+                          <span>Semester Credits: <b>{totalSemCredits}</b></span>
+                          <span>Earned Credits: <b>{totalSemCredits}</b></span>
+                          <span>Total Quality Pts: <b>{totalSemPts.toFixed(1)}</b></span>
+                        </div>
+                        <div style={{ fontSize: 14.5, fontWeight: 900, color: '#6366f1', background: 'rgba(99,102,241,0.1)', padding: '4px 14px', borderRadius: 8 }}>
+                          SEMESTER GPA (SGPA): {sgpa}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Overall CGPA Summary Card */}
+                    <div style={{ background: '#0f172a', color: '#fff', borderRadius: 16, padding: '24px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20 }}>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>CUMULATIVE DEGREE SUMMARY</p>
+                        <h3 style={{ fontSize: 20, fontWeight: 900, marginTop: 4 }}>Cumulative Grade Point Average (CGPA)</h3>
+                        <p style={{ fontSize: 12.5, color: '#cbd5e1', marginTop: 2 }}>Calculated across all completed degree courses.</p>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <p style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>Total Completed Credits</p>
+                          <p style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginTop: 2 }}>{totalSemCredits}</p>
+                        </div>
+                        <div style={{ width: 1, height: 40, background: '#334155' }} />
+                        <div style={{ textAlign: 'center' }}>
+                          <p style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>Academic Standing</p>
+                          <p style={{ fontSize: 14, fontWeight: 800, color: '#10b981', marginTop: 4 }}>GOOD STANDING</p>
+                        </div>
+                        <div style={{ width: 1, height: 40, background: '#334155' }} />
+                        <div style={{ textAlign: 'right', background: 'rgba(255,255,255,0.1)', padding: '10px 20px', borderRadius: 14 }}>
+                          <p style={{ fontSize: 11, color: '#cbd5e1', textTransform: 'uppercase', fontWeight: 700 }}>TOTAL CGPA</p>
+                          <p style={{ fontSize: 26, fontWeight: 900, color: '#38bdf8', marginTop: 2 }}>{sgpa} <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>/ 4.0</span></p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Official Signatures Section */}
+                    <div style={{ marginTop: 32, paddingTop: 28, borderTop: '2px dashed #cbd5e1', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24, textAlign: 'center' }}>
+                      <div>
+                        <div style={{ height: 36, borderBottom: '1px solid #94a3b8', width: '80%', margin: '0 auto 8px' }} />
+                        <p style={{ fontSize: 12, fontWeight: 800, color: '#0f172a' }}>Prepared By</p>
+                        <p style={{ fontSize: 11, color: '#64748b' }}>Academic Records Officer</p>
+                      </div>
+                      <div>
+                        <div style={{ width: 56, height: 56, borderRadius: '50%', border: '2px solid #6366f1', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px', fontSize: 9, fontWeight: 800, textAlign: 'center', padding: 2 }}>
+                          SEAL OF REGISTRAR
+                        </div>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>RAHBAR UNIVERSITY</p>
+                      </div>
+                      <div>
+                        <div style={{ height: 36, borderBottom: '1px solid #94a3b8', width: '80%', margin: '0 auto 8px' }} />
+                        <p style={{ fontSize: 12, fontWeight: 800, color: '#0f172a' }}>Controller of Examinations</p>
+                        <p style={{ fontSize: 11, color: '#64748b' }}>Board of Academic Affairs</p>
+                      </div>
+                    </div>
+
+                  </div>
+                );
+              })()
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── TAB 5: CLASS SCHEDULE / TIMETABLE ── */}
       {activeTab === 'timetable' && (
         <div style={{ background: '#fff', borderRadius: 20, border: '1px solid rgba(99,102,241,0.08)', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -517,7 +725,7 @@ export default function StudentPortalPage() {
                     </div>
                   </td>
                   <td style={tdStyle}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#475569' }}><User size={14} color="#94a3b8" /> {slot.course?.faculty?.name || 'Assigned Staff'}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#475569' }}><User size={14} color="#94a3b8" /> {getFacultyName(slot.course?.faculty)}</div>
                   </td>
                   <td style={tdStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#0f172a' }}><MapPin size={14} color="#6366f1" /> {slot.room}</div>
@@ -575,6 +783,28 @@ export default function StudentPortalPage() {
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-spin { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #printable-transcript, #printable-transcript * {
+            visibility: visible;
+          }
+          #printable-transcript {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
       `}</style>
     </div>
   );

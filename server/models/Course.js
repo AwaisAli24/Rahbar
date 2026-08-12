@@ -10,7 +10,6 @@ const courseSchema = new mongoose.Schema(
     code: {
       type: String,
       required: [true, 'Course code is required'],
-      unique: true,
       trim: true,
       uppercase: true,
     },
@@ -28,11 +27,12 @@ const courseSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    faculty: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Faculty assignment is required'],
-    },
+    faculty: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      }
+    ],
     students: [
       {
         type: mongoose.Schema.Types.ObjectId,
