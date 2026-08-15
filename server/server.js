@@ -9,7 +9,7 @@ import path from 'path';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ─── Load Environment Variables ───────────────────────────────────────────────
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 // ─── Import Routes ────────────────────────────────────────────────────────────
 import healthRoutes from './routes/healthRoutes.js';
