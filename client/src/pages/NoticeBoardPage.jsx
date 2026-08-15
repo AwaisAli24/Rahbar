@@ -1,3 +1,4 @@
+import { apiFetch } from '../api';
 import { useState, useEffect } from 'react';
 import { 
   Megaphone, Plus, Trash2, AlertTriangle, Info, BellRing, 
@@ -24,7 +25,7 @@ export default function NoticeBoardPage() {
   const fetchNotices = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/notices', { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await apiFetch('/api/notices', { headers: { 'Authorization': `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) setNotices(data.data || []);
     } catch (err) {
@@ -39,7 +40,7 @@ export default function NoticeBoardPage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/notices', {
+      const res = await apiFetch('/api/notices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(formData)
@@ -62,7 +63,7 @@ export default function NoticeBoardPage() {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this notice?')) return;
     try {
-      const res = await fetch(`/api/notices/${id}`, {
+      const res = await apiFetch(`/api/notices/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

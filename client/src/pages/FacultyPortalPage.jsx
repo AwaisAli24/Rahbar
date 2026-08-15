@@ -1,3 +1,4 @@
+import { apiFetch } from '../api';
 import { useState, useEffect } from 'react';
 import { 
   User, BookOpen, Calendar, Clock, MapPin, 
@@ -77,8 +78,8 @@ export default function FacultyPortalPage() {
       setLoading(true);
       try {
         const [coursesRes, timeRes] = await Promise.all([
-          fetch(`/api/courses?facultyId=${userId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
-          fetch(`/api/timetable?facultyId=${userId}`, { headers: { 'Authorization': `Bearer ${token}` } })
+          apiFetch(`/api/courses?facultyId=${userId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          apiFetch(`/api/timetable?facultyId=${userId}`, { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
 
         const coursesData = await coursesRes.json();
@@ -110,7 +111,7 @@ export default function FacultyPortalPage() {
     setAttendanceError(null);
     setAttendanceSuccess(null);
     try {
-      const res = await fetch(`/api/attendance?courseId=${courseId}&date=${date}`, {
+      const res = await apiFetch(`/api/attendance?courseId=${courseId}&date=${date}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -146,7 +147,7 @@ export default function FacultyPortalPage() {
   const fetchSessionStatus = async (courseId) => {
     if (!courseId) return;
     try {
-      const res = await fetch(`/api/faculty-attendance/session-status?courseId=${courseId}`, {
+      const res = await apiFetch(`/api/faculty-attendance/session-status?courseId=${courseId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -164,7 +165,7 @@ export default function FacultyPortalPage() {
     setSessionError(null);
     setSessionSuccess(null);
     try {
-      const res = await fetch('/api/faculty-attendance/start-class', {
+      const res = await apiFetch('/api/faculty-attendance/start-class', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ courseId: selectedCourseId })
@@ -189,7 +190,7 @@ export default function FacultyPortalPage() {
     setSessionLoading(true);
     setSessionError(null);
     try {
-      const res = await fetch('/api/faculty-attendance/end-class', {
+      const res = await apiFetch('/api/faculty-attendance/end-class', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ courseId: selectedCourseId })
@@ -210,7 +211,7 @@ export default function FacultyPortalPage() {
   const fetchMySessions = async () => {
     setMySessionsLoading(true);
     try {
-      const res = await fetch('/api/faculty-attendance/my-sessions', {
+      const res = await apiFetch('/api/faculty-attendance/my-sessions', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -241,8 +242,8 @@ export default function FacultyPortalPage() {
     setExamsSuccess(null);
     try {
       const [assessRes, gbRes] = await Promise.all([
-        fetch(`/api/assessments?courseId=${courseId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`/api/assessments/gradebook/${courseId}`, { headers: { 'Authorization': `Bearer ${token}` } })
+        apiFetch(`/api/assessments?courseId=${courseId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        apiFetch(`/api/assessments/gradebook/${courseId}`, { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
       const assessData = await assessRes.json();
       const gbData = await gbRes.json();
@@ -271,7 +272,7 @@ export default function FacultyPortalPage() {
       if (activeTab !== 'notices') return;
       setNoticesLoading(true);
       try {
-        const res = await fetch('/api/notices', { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await apiFetch('/api/notices', { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
         if (data.success) setNotices(data.data || []);
       } catch (err) {
@@ -315,7 +316,7 @@ export default function FacultyPortalPage() {
         remarks: rec.remarks || ''
       }));
 
-      const res = await fetch('/api/attendance', {
+      const res = await apiFetch('/api/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ courseId: selectedCourseId, date: attendanceDate, records: payloadRecords })
@@ -342,7 +343,7 @@ export default function FacultyPortalPage() {
     setExamCreating(true);
     setExamsError(null);
     try {
-      const res = await fetch('/api/assessments', {
+      const res = await apiFetch('/api/assessments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -370,7 +371,7 @@ export default function FacultyPortalPage() {
   const handleDeleteExam = async (id, title) => {
     if (!window.confirm(`Are you sure you want to delete "${title}"? This will remove all student marks for this exam.`)) return;
     try {
-      const res = await fetch(`/api/assessments/${id}`, {
+      const res = await apiFetch(`/api/assessments/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -425,7 +426,7 @@ export default function FacultyPortalPage() {
         remarks: rec.remarks || ''
       }));
 
-      const res = await fetch(`/api/assessments/${marksModalExam._id}/marks`, {
+      const res = await apiFetch(`/api/assessments/${marksModalExam._id}/marks`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ records: payloadRecords })

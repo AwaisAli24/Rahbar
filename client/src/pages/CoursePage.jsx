@@ -1,3 +1,4 @@
+import { apiFetch } from '../api';
 import { useState, useEffect } from 'react';
 import { 
   BookOpen, Plus, Search, Trash2, GraduationCap, 
@@ -39,9 +40,9 @@ export default function CoursePage() {
     setLoading(true);
     try {
       const [cRes, fRes, sRes] = await Promise.all([
-        fetch('/api/courses',           { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/users?role=faculty', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/users?role=student', { headers: { 'Authorization': `Bearer ${token}` } }),
+        apiFetch('/api/courses',           { headers: { 'Authorization': `Bearer ${token}` } }),
+        apiFetch('/api/users?role=faculty', { headers: { 'Authorization': `Bearer ${token}` } }),
+        apiFetch('/api/users?role=student', { headers: { 'Authorization': `Bearer ${token}` } }),
       ]);
       const [cd, fd, sd] = await Promise.all([cRes.json(), fRes.json(), sRes.json()]);
       if (cd.success) setCourses(cd.data);
@@ -56,7 +57,7 @@ export default function CoursePage() {
   const handleCreateCourse = async (e) => {
     e.preventDefault(); setFormLoading(true); setFormError('');
     try {
-      const res  = await fetch('/api/courses', {
+      const res  = await apiFetch('/api/courses', {
         method: 'POST',
         headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` },
         body: JSON.stringify(form),
@@ -88,7 +89,7 @@ export default function CoursePage() {
   const handleFacultyAssignSave = async () => {
     setFacAssignLoading(true);
     try {
-      const res = await fetch(`/api/courses/${facultyCourseTarget._id}/faculty`, {
+      const res = await apiFetch(`/api/courses/${facultyCourseTarget._id}/faculty`, {
         method: 'PUT',
         headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` },
         body: JSON.stringify({ facultyIds: selectedFacultyIds }),
@@ -112,7 +113,7 @@ export default function CoursePage() {
   const handleEnrollSubmit = async () => {
     setEnrollLoading(true);
     try {
-      const res = await fetch(`/api/courses/${selectedCourse._id}/enroll`, {
+      const res = await apiFetch(`/api/courses/${selectedCourse._id}/enroll`, {
         method: 'POST',
         headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` },
         body: JSON.stringify({ studentIds: enrolledStudentIds }),
@@ -129,7 +130,7 @@ export default function CoursePage() {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this course?')) return;
     try {
-      const res = await fetch(`/api/courses/${id}`, { method:'DELETE', headers:{'Authorization':`Bearer ${token}`} });
+      const res = await apiFetch(`/api/courses/${id}`, { method:'DELETE', headers:{'Authorization':`Bearer ${token}`} });
       if (res.ok) fetchData();
     } catch { alert('Delete failed'); }
   };

@@ -1,3 +1,4 @@
+import { apiFetch } from '../api';
 import { useState, useEffect } from 'react';
 import { 
   Building2, GraduationCap, ShieldCheck, Sliders, 
@@ -35,7 +36,7 @@ export default function SettingsPage() {
     const fetchSettings = async () => {
       setLoading(true);
       try {
-        const res = await fetch('/api/settings', {
+        const res = await apiFetch('/api/settings', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -62,7 +63,7 @@ export default function SettingsPage() {
     setError(null);
     setSuccess(null);
     try {
-      const res = await fetch('/api/settings', {
+      const res = await apiFetch('/api/settings', {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',

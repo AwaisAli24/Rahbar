@@ -37,7 +37,10 @@ connectDB();
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(helmet());                          // Security headers
 app.use(cors({ 
-  origin: [process.env.CLIENT_URL || 'http://localhost:5173', 'http://localhost:5173'], 
+  origin: [
+    process.env.CLIENT_URL,          // e.g. https://rahbar.vercel.app (set on Render)
+    'http://localhost:5173',          // local Vite dev server
+  ].filter(Boolean),
   credentials: true 
 }));
 app.use(express.json());                    // Parse JSON bodies

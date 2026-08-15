@@ -1,3 +1,4 @@
+import { apiFetch } from '../api';
 import { useState, useEffect, useCallback } from 'react';
 import {
   ScrollText, Search, GraduationCap, User, BookOpen,
@@ -91,7 +92,7 @@ export default function TranscriptsPage() {
     setExpandedCourse(null);
     setTranscriptLoading(true);
     try {
-      const res = await fetch(`/api/transcripts/${student._id}`, {
+      const res = await apiFetch(`/api/transcripts/${student._id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();

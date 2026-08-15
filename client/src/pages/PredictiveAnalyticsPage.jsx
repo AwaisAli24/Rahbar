@@ -1,3 +1,4 @@
+import { apiFetch } from '../api';
 import { useState, useEffect } from 'react';
 import { 
   Brain, ShieldAlert, AlertTriangle, HelpCircle, 
@@ -21,7 +22,7 @@ export default function PredictiveAnalyticsPage() {
   const fetchPredictiveData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/predictions/dashboard', {
+      const res = await apiFetch('/api/predictions/dashboard', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -39,7 +40,7 @@ export default function PredictiveAnalyticsPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const res = await fetch('/api/predictions/dashboard', {
+      const res = await apiFetch('/api/predictions/dashboard', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();

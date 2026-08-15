@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { apiFetch } from '../api';
 
 const AuthContext = createContext(null);
 
@@ -29,10 +30,9 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/auth/login', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email, password }),
+      const res = await apiFetch('/api/auth/login', {
+        method: 'POST',
+        body:   JSON.stringify({ email, password }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Login failed');
@@ -52,10 +52,9 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/auth/register', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ name, email, password, role }),
+      const res = await apiFetch('/api/auth/register', {
+        method: 'POST',
+        body:   JSON.stringify({ name, email, password, role }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Registration failed');

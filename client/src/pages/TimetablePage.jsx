@@ -1,3 +1,4 @@
+import { apiFetch } from '../api';
 import { useState, useEffect } from 'react';
 import { 
   Calendar, Clock, MapPin, Plus, Trash2, 
@@ -42,7 +43,7 @@ export default function TimetablePage() {
   const fetchTimetable = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/timetable?department=${encodeURIComponent(selectedDept)}`, {
+      const res = await apiFetch(`/api/timetable?department=${encodeURIComponent(selectedDept)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -56,7 +57,7 @@ export default function TimetablePage() {
 
   const fetchCourses = async () => {
     try {
-      const res = await fetch(`/api/courses?department=${encodeURIComponent(selectedDept)}`, {
+      const res = await apiFetch(`/api/courses?department=${encodeURIComponent(selectedDept)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -91,7 +92,7 @@ export default function TimetablePage() {
     setFormError(null);
     setSuccessMsg(null);
     try {
-      const res = await fetch('/api/timetable', {
+      const res = await apiFetch('/api/timetable', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -116,7 +117,7 @@ export default function TimetablePage() {
   const handleDeleteSlot = async (id) => {
     if (!window.confirm('Are you sure you want to remove this timetable slot?')) return;
     try {
-      const res = await fetch(`/api/timetable/${id}`, {
+      const res = await apiFetch(`/api/timetable/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -384,7 +385,7 @@ export default function TimetablePage() {
                     const dept = e.target.value;
                     setForm(prev => ({ ...prev, department: dept }));
                     // Fetch courses for selected dept
-                    fetch(`/api/courses?department=${encodeURIComponent(dept)}`, { headers: { 'Authorization': `Bearer ${token}` } })
+                    apiFetch(`/api/courses?department=${encodeURIComponent(dept)}`, { headers: { 'Authorization': `Bearer ${token}` } })
                       .then(r => r.json())
                       .then(d => { if (d.success) { setCourses(d.data); if (d.data.length > 0) setForm(prev => ({ ...prev, courseId: d.data[0]._id })); } });
                   }}

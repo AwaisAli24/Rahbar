@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../api';
 import {
   Bell, Search, TrendingUp, Users, BookOpen, Activity, Zap,
   Shield, Clock, Loader2, Award, GraduationCap
@@ -37,9 +38,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const res = await fetch('/api/analytics', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch('/api/analytics');
         const result = await res.json();
         if (result.success) {
           setData(result.data);

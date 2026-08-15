@@ -1,3 +1,4 @@
+import { apiFetch } from '../api';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Users, UserPlus, Search, Trash2, Pencil,
@@ -65,7 +66,7 @@ export default function StudentsPage() {
 
   const fetchStudents = async () => {
     try {
-      const res = await fetch('/api/users?role=student', {
+      const res = await apiFetch('/api/users?role=student', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -84,7 +85,7 @@ export default function StudentsPage() {
     setWithdrawnLoading(true);
     try {
       // Get all courses
-      const cRes = await fetch('/api/courses', { headers: { 'Authorization': `Bearer ${token}` } });
+      const cRes = await apiFetch('/api/courses', { headers: { 'Authorization': `Bearer ${token}` } });
       const cData = await cRes.json();
       if (!cData.success) return;
       setCourses(cData.data || []);
@@ -95,7 +96,7 @@ export default function StudentsPage() {
       // For each course, get attendance summary and find withdrawn students
       const results = await Promise.all(
         (cData.data || []).map(async (course) => {
-          const sRes = await fetch(`/api/attendance/summary/${course._id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+          const sRes = await apiFetch(`/api/attendance/summary/${course._id}`, { headers: { 'Authorization': `Bearer ${token}` } });
           const sData = await sRes.json();
           if (!sData.success) return null;
 
@@ -105,7 +106,7 @@ export default function StudentsPage() {
           // For each withdrawn student, get their session-by-session records
           const studentsWithRecords = await Promise.all(
             withdrawn.map(async (item) => {
-              const aRes = await fetch(`/api/attendance/student/${item.student.id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+              const aRes = await apiFetch(`/api/attendance/student/${item.student.id}`, { headers: { 'Authorization': `Bearer ${token}` } });
               const aData = await aRes.json();
               const courseRecord = aData.success ? (aData.data || []).find(r => r.course.id === course._id || r.course._id === course._id) : null;
               return { ...item, courseRecord };
@@ -162,7 +163,7 @@ export default function StudentsPage() {
         throw new Error('Academic Merit concession requires a CGPA of 3.5 or higher.');
       }
       const submitData = { ...form, session: `${form.sessionSeason}${form.sessionYear}` };
-      const res = await fetch('/api/auth/register', {
+      const res = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(submitData)
@@ -174,7 +175,7 @@ export default function StudentsPage() {
       if (photoFile && data.user?._id) {
         const fd = new FormData();
         fd.append('profilePicture', photoFile);
-        await fetch(`/api/users/${data.user._id}/photo`, {
+        await apiFetch(`/api/users/${data.user._id}/photo`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
           body: fd
@@ -192,7 +193,7 @@ export default function StudentsPage() {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this student?')) return;
     try {
-      const res = await fetch(`/api/users/${id}`, { method:'DELETE', headers:{'Authorization':`Bearer ${token}`} });
+      const res = await apiFetch(`/api/users/${id}`, { method:'DELETE', headers:{'Authorization':`Bearer ${token}`} });
       if (res.ok) fetchStudents();
     } catch { alert('Delete failed'); }
   };
@@ -219,7 +220,7 @@ export default function StudentsPage() {
       if (form.concessionType === 'academic_merit' && (!form.cgpa || Number(form.cgpa) < 3.5)) {
         throw new Error('Academic Merit concession requires a CGPA of 3.5 or higher.');
       }
-      const res = await fetch(`/api/users/${editStudent._id}`, {
+      const res = await apiFetch(`/api/users/${editStudent._id}`, {
         method:'PUT',
         headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
         body:JSON.stringify({
@@ -235,7 +236,7 @@ export default function StudentsPage() {
       if (photoFile) {
         const fd = new FormData();
         fd.append('profilePicture', photoFile);
-        await fetch(`/api/users/${editStudent._id}/photo`, {
+        await apiFetch(`/api/users/${editStudent._id}/photo`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
           body: fd
@@ -262,7 +263,7 @@ export default function StudentsPage() {
   const handleReverseWithdrawal = async (courseId, studentId, studentName) => {
     if (!window.confirm(`Are you sure you want to reverse withdrawal for ${studentName}? This will excuse 2 recent absents, restore the student to active standing, and unlock their attendance in Faculty Portal.`)) return;
     try {
-      const res = await fetch('/api/attendance/reverse-withdrawal', {
+      const res = await apiFetch('/api/attendance/reverse-withdrawal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ courseId, studentId })
@@ -279,7 +280,7 @@ export default function StudentsPage() {
   // Toggle single date status for admin audit
   const handleUpdateRecord = async (courseId, studentId, date, newStatus) => {
     try {
-      const res = await fetch('/api/attendance/update-record', {
+      const res = await apiFetch('/api/attendance/update-record', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ courseId, studentId, date, newStatus, remarks: '[Status updated by Admin]' })

@@ -1,3 +1,4 @@
+import { apiFetch } from '../api';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Users, UserPlus, Search, Trash2, Pencil,
@@ -50,7 +51,7 @@ export default function FacultyPage() {
   /* ─── Fetch ─── */
   const fetchFaculty = async () => {
     try {
-      const res  = await fetch('/api/users?role=faculty', { headers: { 'Authorization': `Bearer ${token}` } });
+      const res  = await apiFetch('/api/users?role=faculty', { headers: { 'Authorization': `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) setFaculty(data.data);
     } catch { console.error('Failed to fetch faculty'); }
@@ -86,7 +87,7 @@ export default function FacultyPage() {
     if (!photoFile || !userId) return;
     const fd = new FormData();
     fd.append('profilePicture', photoFile);
-    await fetch(`/api/users/${userId}/photo`, {
+    await apiFetch(`/api/users/${userId}/photo`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body: fd,
@@ -97,7 +98,7 @@ export default function FacultyPage() {
   const handleAddFaculty = async (e) => {
     e.preventDefault(); setFormLoading(true); setFormError('');
     try {
-      const res  = await fetch('/api/auth/register', {
+      const res  = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(form),
@@ -128,7 +129,7 @@ export default function FacultyPage() {
   const handleEditFaculty = async (e) => {
     e.preventDefault(); setFormLoading(true); setFormError('');
     try {
-      const res  = await fetch(`/api/users/${editMember._id}`, {
+      const res  = await apiFetch(`/api/users/${editMember._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -149,7 +150,7 @@ export default function FacultyPage() {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this faculty member?')) return;
     try {
-      const res = await fetch(`/api/users/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await apiFetch(`/api/users/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) fetchFaculty();
     } catch { alert('Delete failed'); }
   };

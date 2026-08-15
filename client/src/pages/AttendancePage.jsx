@@ -1,3 +1,4 @@
+import { apiFetch } from '../api';
 import { useState, useEffect } from 'react';
 import { 
   Calendar, BookOpen, CheckCircle2, XCircle, Clock, 
@@ -29,7 +30,7 @@ export default function AttendancePage() {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const res = await fetch('/api/courses', {
+        const res = await apiFetch('/api/courses', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -53,7 +54,7 @@ export default function AttendancePage() {
       setLoading(true);
       setSaveMessage(null);
       try {
-        const res = await fetch(`/api/attendance?courseId=${selectedCourse}&date=${selectedDate}`, {
+        const res = await apiFetch(`/api/attendance?courseId=${selectedCourse}&date=${selectedDate}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -82,7 +83,7 @@ export default function AttendancePage() {
       if (!selectedCourse) return;
       setLoading(true);
       try {
-        const res = await fetch(`/api/attendance/summary/${selectedCourse}`, {
+        const res = await apiFetch(`/api/attendance/summary/${selectedCourse}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -126,7 +127,7 @@ export default function AttendancePage() {
     setSaving(true);
     setSaveMessage(null);
     try {
-      const res = await fetch('/api/attendance', {
+      const res = await apiFetch('/api/attendance', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

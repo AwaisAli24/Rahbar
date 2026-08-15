@@ -1,3 +1,4 @@
+import { apiFetch } from '../api';
 import { useState, useEffect } from 'react';
 import { 
   CreditCard, DollarSign, FileText, CheckCircle2, 
@@ -59,8 +60,8 @@ export default function FinancePage() {
     try {
       if (activeTab === 'fees') {
         const [feeRes, stdRes] = await Promise.all([
-          fetch('/api/finance/fees', { headers: { 'Authorization': `Bearer ${token}` } }),
-          fetch('/api/users?role=student', { headers: { 'Authorization': `Bearer ${token}` } })
+          apiFetch('/api/finance/fees', { headers: { 'Authorization': `Bearer ${token}` } }),
+          apiFetch('/api/users?role=student', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
         const feeData = await feeRes.json();
         const stdData = await stdRes.json();
@@ -71,8 +72,8 @@ export default function FinancePage() {
         }
       } else {
         const [salRes, facRes] = await Promise.all([
-          fetch('/api/finance/salaries', { headers: { 'Authorization': `Bearer ${token}` } }),
-          fetch('/api/users?role=faculty', { headers: { 'Authorization': `Bearer ${token}` } })
+          apiFetch('/api/finance/salaries', { headers: { 'Authorization': `Bearer ${token}` } }),
+          apiFetch('/api/users?role=faculty', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
         const salData = await salRes.json();
         const facData = await facRes.json();
@@ -122,7 +123,7 @@ export default function FinancePage() {
     setFeeSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/finance/fees/${editFeeForm.id}`, {
+      const res = await apiFetch(`/api/finance/fees/${editFeeForm.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -164,7 +165,7 @@ export default function FinancePage() {
   const handleUpdateFeeStatus = async (id, status) => {
     if (!window.confirm(`Mark this fee challan as ${status}?`)) return;
     try {
-      const res = await fetch(`/api/finance/fees/${id}/status`, {
+      const res = await apiFetch(`/api/finance/fees/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status })
@@ -185,7 +186,7 @@ export default function FinancePage() {
         dueDate: autoGenForm.dueDate,
         ...(autoGenForm.department && { department: autoGenForm.department })
       };
-      const res = await fetch('/api/finance/fees/auto', {
+      const res = await apiFetch('/api/finance/fees/auto', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
@@ -209,7 +210,7 @@ export default function FinancePage() {
     setSalarySaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/finance/salaries', {
+      const res = await apiFetch('/api/finance/salaries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(salaryForm)
@@ -231,7 +232,7 @@ export default function FinancePage() {
   const handleUpdateSalaryStatus = async (id, status) => {
     if (!window.confirm(`Mark this salary slip as ${status}?`)) return;
     try {
-      const res = await fetch(`/api/finance/salaries/${id}/status`, {
+      const res = await apiFetch(`/api/finance/salaries/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status })

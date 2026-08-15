@@ -1,3 +1,4 @@
+import { apiFetch } from '../api';
 import { useState, useEffect, useCallback } from 'react';
 import {
   UserCheck, Clock, PlayCircle, StopCircle, Calendar,
@@ -73,7 +74,7 @@ export default function FacultyAttendancePage() {
   const fetchSummary = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/faculty-attendance/summary', {
+      const res = await apiFetch('/api/faculty-attendance/summary', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();

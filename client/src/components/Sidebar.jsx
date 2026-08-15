@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../api';
 import { LogOut } from 'lucide-react';
 import {
   LayoutDashboard, Users, BookOpen, Bus, Calendar,
@@ -18,9 +19,7 @@ export default function Sidebar({ active, onNavigate }) {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch('/api/users/stats', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch('/api/users/stats');
         const data = await res.json();
         if (data.success) {
           setStats(data.stats);

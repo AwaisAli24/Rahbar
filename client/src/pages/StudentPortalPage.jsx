@@ -1,3 +1,4 @@
+import { apiFetch } from '../api';
 import { useState, useEffect } from 'react';
 import { 
   User, BookOpen, Calendar, Clock, MapPin, 
@@ -49,9 +50,9 @@ export default function StudentPortalPage() {
       setLoading(true);
       try {
         const [coursesRes, attRes, timeRes] = await Promise.all([
-          fetch(`/api/courses?studentId=${userId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
-          fetch(`/api/attendance/student/${userId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
-          fetch(`/api/timetable?department=${encodeURIComponent(user.department || 'Computer Science')}`, { headers: { 'Authorization': `Bearer ${token}` } })
+          apiFetch(`/api/courses?studentId=${userId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          apiFetch(`/api/attendance/student/${userId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          apiFetch(`/api/timetable?department=${encodeURIComponent(user.department || 'Computer Science')}`, { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
 
         const coursesData = await coursesRes.json();
@@ -86,7 +87,7 @@ export default function StudentPortalPage() {
       if (!userId || (activeTab !== 'exams' && activeTab !== 'transcript')) return;
       setGradesLoading(true);
       try {
-        const res = await fetch(`/api/assessments/student/${userId}`, {
+        const res = await apiFetch(`/api/assessments/student/${userId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -109,7 +110,7 @@ export default function StudentPortalPage() {
       if (activeTab !== 'notices') return;
       setNoticesLoading(true);
       try {
-        const res = await fetch('/api/notices', { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await apiFetch('/api/notices', { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
         if (data.success) setNotices(data.data || []);
       } catch (err) {
@@ -127,7 +128,7 @@ export default function StudentPortalPage() {
       const userId = user?._id || user?.id;
       if (!userId || !token) return;
       try {
-        const res = await fetch(`/api/predictions/student/${userId}`, {
+        const res = await apiFetch(`/api/predictions/student/${userId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();

@@ -6,7 +6,8 @@ import Assessment from '../models/Assessment.js';
 // Helper function to query predictions from Python ML microservice
 const queryMLPrediction = async (studentData) => {
   try {
-    const response = await fetch('http://localhost:5001/predict', {
+    const ML_URL = process.env.ML_SERVICE_URL || 'http://localhost:5001';
+    const response = await fetch(`${ML_URL}/predict`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
