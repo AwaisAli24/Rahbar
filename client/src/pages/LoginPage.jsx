@@ -1,20 +1,38 @@
 import { apiFetch } from '../api';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Sparkles, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { validateEmail, validatePassword } from '../utils/validation';
 
 export default function LoginPage() {
   const { login, register, loading } = useAuth();
 
   const [form,      setForm]      = useState({ email: '', password: '' });
   const [showPass,  setShowPass]  = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState('');
 
-  const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm(f => ({ ...f, [name]: value }));
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => ({ ...prev, [name]: null }));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
+
+    const emailErr = validateEmail(form.email);
+    const passErr = validatePassword(form.password, 4);
+
+    if (emailErr || passErr) {
+      setFieldErrors({ email: emailErr, password: passErr });
+      return;
+    }
+
+    setFieldErrors({});
     const result = await login(form.email, form.password);
     if (!result.success) setFormError(result.message);
   };
@@ -91,19 +109,33 @@ export default function LoginPage() {
           <div>
             <label style={labelStyle}>Email Address</label>
             <input name="email" type="email" value={form.email} onChange={handleChange}
-              placeholder="you@university.edu" style={inputStyle} required
-              onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
-              onBlur={e  => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
+              placeholder="you@university.edu"
+              style={{
+                ...inputStyle,
+                borderColor: fieldErrors.email ? '#f43f5e' : '#e2e8f0',
+              }}
+              onFocus={e => { e.target.style.borderColor = fieldErrors.email ? '#f43f5e' : '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
+              onBlur={e  => { e.target.style.borderColor = fieldErrors.email ? '#f43f5e' : '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
             />
+            {fieldErrors.email && (
+              <p style={{ fontSize: 12, color: '#f43f5e', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <AlertCircle size={13} /> {fieldErrors.email}
+              </p>
+            )}
           </div>
 
           <div>
             <label style={labelStyle}>Password</label>
             <div style={{ position: 'relative' }}>
               <input name="password" type={showPass ? 'text' : 'password'} value={form.password}
-                onChange={handleChange} placeholder="••••••••" style={{ ...inputStyle, paddingRight: 42 }} required
-                onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
-                onBlur={e  => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
+                onChange={handleChange} placeholder="••••••••"
+                style={{
+                  ...inputStyle,
+                  paddingRight: 42,
+                  borderColor: fieldErrors.password ? '#f43f5e' : '#e2e8f0',
+                }}
+                onFocus={e => { e.target.style.borderColor = fieldErrors.password ? '#f43f5e' : '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.08)'; }}
+                onBlur={e  => { e.target.style.borderColor = fieldErrors.password ? '#f43f5e' : '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
               />
               <button type="button" onClick={() => setShowPass(s => !s)} style={{
                 position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
@@ -112,6 +144,11 @@ export default function LoginPage() {
                 {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
+            {fieldErrors.password && (
+              <p style={{ fontSize: 12, color: '#f43f5e', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <AlertCircle size={13} /> {fieldErrors.password}
+              </p>
+            )}
           </div>
 
 

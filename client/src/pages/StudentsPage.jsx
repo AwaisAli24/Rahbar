@@ -7,6 +7,7 @@ import {
   Building2, LayoutGrid, Camera, AlertTriangle, ShieldAlert, Edit3, Save, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { validateName, validatePhone, validateCGPA, validateImageFile } from '../utils/validation';
 
 const PROGRAM_DEPT_MAP = {
   'BCS':  'Computer Science',
@@ -159,6 +160,25 @@ export default function StudentsPage() {
   const handleAddStudent = async (e) => {
     e.preventDefault(); setFormLoading(true); setFormError('');
     try {
+      const nameErr = validateName(form.name, 'Full Name');
+      if (nameErr) throw new Error(nameErr);
+
+      const fatherErr = validateName(form.fatherName, "Father's Name");
+      if (fatherErr) throw new Error(fatherErr);
+
+      if (!form.program) throw new Error('Program selection is required.');
+      if (!form.section || !form.section.trim()) throw new Error('Section is required.');
+
+      const phoneErr = validatePhone(form.phone);
+      if (phoneErr) throw new Error(phoneErr);
+
+      const cgpaErr = validateCGPA(form.cgpa);
+      if (cgpaErr) throw new Error(cgpaErr);
+
+      if (!form.dob) throw new Error('Date of Birth is required.');
+      const dobDate = new Date(form.dob);
+      if (dobDate >= new Date()) throw new Error('Date of Birth must be a past date.');
+
       if (form.concessionType === 'academic_merit' && (!form.cgpa || Number(form.cgpa) < 3.5)) {
         throw new Error('Academic Merit concession requires a CGPA of 3.5 or higher.');
       }
@@ -217,6 +237,20 @@ export default function StudentsPage() {
   const handleEditStudent = async (e) => {
     e.preventDefault(); setFormLoading(true); setFormError('');
     try {
+      const nameErr = validateName(form.name, 'Full Name');
+      if (nameErr) throw new Error(nameErr);
+
+      const fatherErr = validateName(form.fatherName, "Father's Name");
+      if (fatherErr) throw new Error(fatherErr);
+
+      const phoneErr = validatePhone(form.phone);
+      if (phoneErr) throw new Error(phoneErr);
+
+      const cgpaErr = validateCGPA(form.cgpa);
+      if (cgpaErr) throw new Error(cgpaErr);
+
+      if (!form.dob) throw new Error('Date of Birth is required.');
+
       if (form.concessionType === 'academic_merit' && (!form.cgpa || Number(form.cgpa) < 3.5)) {
         throw new Error('Academic Merit concession requires a CGPA of 3.5 or higher.');
       }
@@ -253,6 +287,12 @@ export default function StudentsPage() {
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    const fileErr = validateImageFile(file, 5);
+    if (fileErr) {
+      setFormError(fileErr);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+      return;
+    }
     setPhotoFile(file);
     const reader = new FileReader();
     reader.onload = ev => setPhotoPreview(ev.target.result);

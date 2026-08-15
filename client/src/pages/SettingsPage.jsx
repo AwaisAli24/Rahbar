@@ -5,6 +5,7 @@ import {
   CheckCircle2, AlertCircle, Loader2, Save, Mail, Phone, MapPin, Calendar, Clock
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { validateEmail, validatePhone, validateName, validateNumberRange, validateDateRange } from '../utils/validation';
 
 export default function SettingsPage() {
   const { token } = useAuth();
@@ -63,6 +64,24 @@ export default function SettingsPage() {
     setError(null);
     setSuccess(null);
     try {
+      const nameErr = validateName(settings.universityName, 'University Name');
+      if (nameErr) throw new Error(nameErr);
+
+      const emailErr = validateEmail(settings.contactEmail);
+      if (emailErr) throw new Error(emailErr);
+
+      const phoneErr = validatePhone(settings.contactPhone);
+      if (phoneErr) throw new Error(phoneErr);
+
+      const dateErr = validateDateRange(settings.semesterStartDate, settings.semesterEndDate, 'Semester Start Date', 'Semester End Date');
+      if (dateErr) throw new Error(dateErr);
+
+      const creditErr = validateNumberRange(settings.maxCreditHoursPerSemester, 3, 24, 'Max Credit Hours');
+      if (creditErr) throw new Error(creditErr);
+
+      const attErr = validateNumberRange(settings.attendanceThreshold, 50, 100, 'Attendance Threshold');
+      if (attErr) throw new Error(attErr);
+
       const res = await apiFetch('/api/settings', {
         method: 'PUT',
         headers: { 

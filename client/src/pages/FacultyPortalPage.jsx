@@ -9,6 +9,7 @@ import {
   PlayCircle, StopCircle, UserCheck, Timer, History
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { validateName, validatePositiveNumber, validateNumberRange, validateExamMarks } from '../utils/validation';
 
 export default function FacultyPortalPage() {
   const { token, user } = useAuth();
@@ -343,6 +344,17 @@ export default function FacultyPortalPage() {
     setExamCreating(true);
     setExamsError(null);
     try {
+      const titleErr = validateName(examForm.title, 'Assessment Title');
+      if (titleErr) throw new Error(titleErr);
+
+      const marksErr = validatePositiveNumber(examForm.totalMarks, 'Total Marks');
+      if (marksErr) throw new Error(marksErr);
+
+      const weightErr = validateNumberRange(examForm.weightage, 1, 100, 'Weightage %');
+      if (weightErr) throw new Error(weightErr);
+
+      if (!examForm.date) throw new Error('Assessment Date is required.');
+
       const res = await apiFetch('/api/assessments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -420,6 +432,13 @@ export default function FacultyPortalPage() {
     setMarksSaving(true);
     setExamsError(null);
     try {
+      for (const rec of marksRecords) {
+        const marksErr = validateExamMarks(rec.marksObtained, marksModalExam?.totalMarks || 100);
+        if (marksErr) {
+          throw new Error(`${rec.studentName} (${rec.campusID}): ${marksErr}`);
+        }
+      }
+
       const payloadRecords = marksRecords.map(rec => ({
         studentId: rec.studentId,
         marksObtained: Number(rec.marksObtained) || 0,

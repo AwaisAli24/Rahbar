@@ -6,6 +6,7 @@ import {
   UserPlus, CheckCircle2, User
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { validateCourseCode, validateName, validateNumberRange } from '../utils/validation';
 
 export default function CoursePage() {
   const { token } = useAuth();
@@ -57,6 +58,17 @@ export default function CoursePage() {
   const handleCreateCourse = async (e) => {
     e.preventDefault(); setFormLoading(true); setFormError('');
     try {
+      const codeErr = validateCourseCode(form.code);
+      if (codeErr) throw new Error(codeErr);
+
+      const titleErr = validateName(form.title, 'Course Title');
+      if (titleErr) throw new Error(titleErr);
+
+      if (!form.department) throw new Error('Department selection is required.');
+
+      const creditErr = validateNumberRange(form.creditHours, 1, 6, 'Credit Hours');
+      if (creditErr) throw new Error(creditErr);
+
       const res  = await apiFetch('/api/courses', {
         method: 'POST',
         headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` },

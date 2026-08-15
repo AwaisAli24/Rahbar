@@ -6,6 +6,7 @@ import {
   AlertCircle, CheckCircle2, Grid, List
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { validateName } from '../utils/validation';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const TIME_SLOTS = [
@@ -92,6 +93,10 @@ export default function TimetablePage() {
     setFormError(null);
     setSuccessMsg(null);
     try {
+      if (!form.courseId) throw new Error('Course selection is required.');
+      if (!form.room || !form.room.trim()) throw new Error('Room / Location is required.');
+      if (form.startTime >= form.endTime) throw new Error('End time must be chronologically after start time.');
+
       const res = await apiFetch('/api/timetable', {
         method: 'POST',
         headers: { 

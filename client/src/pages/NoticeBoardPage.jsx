@@ -5,6 +5,7 @@ import {
   CheckCircle2, AlertCircle, Loader2, Clock
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { validateName } from '../utils/validation';
 
 export default function NoticeBoardPage() {
   const { token, user } = useAuth();
@@ -40,6 +41,12 @@ export default function NoticeBoardPage() {
     setSaving(true);
     setError(null);
     try {
+      const titleErr = validateName(formData.title, 'Notice Title');
+      if (titleErr) throw new Error(titleErr);
+      if (!formData.content || formData.content.trim().length < 10) {
+        throw new Error('Notice content must be at least 10 characters long.');
+      }
+
       const res = await apiFetch('/api/notices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

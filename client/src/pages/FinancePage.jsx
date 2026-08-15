@@ -6,6 +6,7 @@ import {
   Eye, Printer, X, Zap, Search
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { validatePositiveNumber } from '../utils/validation';
 
 export default function FinancePage() {
   const { token } = useAuth();
@@ -99,6 +100,11 @@ export default function FinancePage() {
       const endpoint = isBulk ? '/api/finance/fees/bulk' : '/api/finance/fees';
       const payload = isBulk ? bulkFeeForm : feeForm;
 
+      if (!payload.semester || !payload.semester.trim()) throw new Error('Semester is required.');
+      if (!payload.dueDate) throw new Error('Due Date is required.');
+      const amountErr = validatePositiveNumber(payload.amount, 'Fee Amount');
+      if (amountErr) throw new Error(amountErr);
+
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -123,6 +129,11 @@ export default function FinancePage() {
     setFeeSaving(true);
     setError(null);
     try {
+      if (!editFeeForm.semester || !editFeeForm.semester.trim()) throw new Error('Semester is required.');
+      if (!editFeeForm.dueDate) throw new Error('Due Date is required.');
+      const amountErr = validatePositiveNumber(editFeeForm.amount, 'Fee Amount');
+      if (amountErr) throw new Error(amountErr);
+
       const res = await apiFetch(`/api/finance/fees/${editFeeForm.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -181,6 +192,9 @@ export default function FinancePage() {
     setAutoGenSaving(true);
     setError(null);
     try {
+      if (!autoGenForm.semester || !autoGenForm.semester.trim()) throw new Error('Semester is required.');
+      if (!autoGenForm.dueDate) throw new Error('Due Date is required.');
+
       const payload = { 
         semester: autoGenForm.semester, 
         dueDate: autoGenForm.dueDate,
@@ -210,6 +224,16 @@ export default function FinancePage() {
     setSalarySaving(true);
     setError(null);
     try {
+      if (!salaryForm.month || !salaryForm.month.trim()) throw new Error('Salary month is required.');
+      const salaryErr = validatePositiveNumber(salaryForm.basicSalary, 'Basic Salary');
+      if (salaryErr) throw new Error(salaryErr);
+
+      const allowErr = validatePositiveNumber(salaryForm.allowances, 'Allowances', true);
+      if (allowErr) throw new Error(allowErr);
+
+      const dedErr = validatePositiveNumber(salaryForm.deductions, 'Deductions', true);
+      if (dedErr) throw new Error(dedErr);
+
       const res = await apiFetch('/api/finance/salaries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

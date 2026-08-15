@@ -6,6 +6,7 @@ import {
   Phone, User as UserIcon, BookOpen, Camera
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { validateName, validateEmail, validatePhone, validateImageFile } from '../utils/validation';
 
 /* ─── Department colours (same palette as StudentsPage) ─── */
 const DEPT_COLORS = {
@@ -77,6 +78,12 @@ export default function FacultyPage() {
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    const fileErr = validateImageFile(file, 5);
+    if (fileErr) {
+      setFormError(fileErr);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+      return;
+    }
     setPhotoFile(file);
     const reader = new FileReader();
     reader.onload = ev => setPhotoPreview(ev.target.result);
@@ -98,6 +105,18 @@ export default function FacultyPage() {
   const handleAddFaculty = async (e) => {
     e.preventDefault(); setFormLoading(true); setFormError('');
     try {
+      const nameErr = validateName(form.name, 'Faculty Name');
+      if (nameErr) throw new Error(nameErr);
+
+      const emailErr = validateEmail(form.email);
+      if (emailErr) throw new Error(emailErr);
+
+      if (!form.department) throw new Error('Department selection is required.');
+      if (!form.designation) throw new Error('Designation selection is required.');
+
+      const phoneErr = validatePhone(form.phone);
+      if (phoneErr) throw new Error(phoneErr);
+
       const res  = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -129,6 +148,14 @@ export default function FacultyPage() {
   const handleEditFaculty = async (e) => {
     e.preventDefault(); setFormLoading(true); setFormError('');
     try {
+      const nameErr = validateName(form.name, 'Faculty Name');
+      if (nameErr) throw new Error(nameErr);
+
+      if (!form.designation) throw new Error('Designation selection is required.');
+
+      const phoneErr = validatePhone(form.phone);
+      if (phoneErr) throw new Error(phoneErr);
+
       const res  = await apiFetch(`/api/users/${editMember._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
